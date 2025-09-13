@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "stream-tweaks",
+  "version": "${version}",
+  "name": "Stream Tweaks",
+  "description": "",
+  "authors": [],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/stream-tweaks/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "org.etwas.streamtweaks.client.StreamTweaksClient"
+    ],
+    "main": [
+      "org.etwas.streamtweaks.StreamTweaks"
+    ]
+  },
+  "mixins": [
+    "stream-tweaks.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
