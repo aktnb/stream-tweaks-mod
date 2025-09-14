@@ -1,4 +1,4 @@
-package org.etwas.streamtweaks.auth;
+package org.etwas.streamtweaks.twitch.auth;
 
 public class AuthResult {
     public final String token;

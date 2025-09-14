@@ -1,4 +1,4 @@
-package org.etwas.streamtweaks.auth;
+package org.etwas.streamtweaks.twitch.auth;
 
 import com.sun.net.httpserver.HttpServer;
 import org.slf4j.Logger;

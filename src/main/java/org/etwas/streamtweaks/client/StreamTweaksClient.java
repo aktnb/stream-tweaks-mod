@@ -8,8 +8,8 @@ import net.minecraft.text.HoverEvent;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
-import org.etwas.streamtweaks.auth.AuthResult;
-import org.etwas.streamtweaks.auth.TwitchOAuthClient;
+import org.etwas.streamtweaks.twitch.auth.AuthResult;
+import org.etwas.streamtweaks.twitch.auth.TwitchOAuthClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

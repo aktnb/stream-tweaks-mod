@@ -1,4 +1,4 @@
-package org.etwas.streamtweaks.auth;
+package org.etwas.streamtweaks.twitch.auth;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
