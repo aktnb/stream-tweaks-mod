@@ -10,16 +10,12 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import org.etwas.streamtweaks.twitch.auth.AuthResult;
 import org.etwas.streamtweaks.twitch.auth.TwitchOAuthClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 
-import static org.etwas.streamtweaks.StreamTweaks.MOD_ID;
+import static org.etwas.streamtweaks.StreamTweaks.LOGGER;
 
 public class StreamTweaksClient implements ClientModInitializer {
-    public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
-
     @Override
     public void onInitializeClient() {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {

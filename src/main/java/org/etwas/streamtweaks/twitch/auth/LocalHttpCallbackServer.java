@@ -1,8 +1,6 @@
 package org.etwas.streamtweaks.twitch.auth;
 
 import com.sun.net.httpserver.HttpServer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -10,10 +8,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.function.Consumer;
 
-import static org.etwas.streamtweaks.StreamTweaks.MOD_ID;
+import static org.etwas.streamtweaks.StreamTweaks.LOGGER;
 
 public final class LocalHttpCallbackServer implements AutoCloseable {
-    public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     private final HttpServer server;
 
     public LocalHttpCallbackServer(int port, String path, Consumer<Map<String, String>> callbackHandler) {

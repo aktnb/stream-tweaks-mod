@@ -4,8 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.fabricmc.loader.api.FabricLoader;
 import org.etwas.streamtweaks.StreamTweaks;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -16,10 +14,9 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.util.EnumSet;
 import java.util.Set;
 
-import static org.etwas.streamtweaks.StreamTweaks.MOD_ID;
+import static org.etwas.streamtweaks.StreamTweaks.LOGGER;
 
 public class TwitchCredentialStore {
-    public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private final Path file = FabricLoader.getInstance().getConfigDir().resolve(StreamTweaks.MOD_ID).resolve("twitch-credentials.json");
 

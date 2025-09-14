@@ -2,8 +2,6 @@ package org.etwas.streamtweaks.twitch.auth;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
@@ -15,11 +13,9 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
-import static org.etwas.streamtweaks.StreamTweaks.MOD_ID;
+import static org.etwas.streamtweaks.StreamTweaks.LOGGER;
 
 public class TwitchOAuthClient {
-    public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
-
     private final Gson GSON = new GsonBuilder().create();
     private final HttpClient http = HttpClient.newHttpClient();
     private final TwitchCredentialStore store = new TwitchCredentialStore();
