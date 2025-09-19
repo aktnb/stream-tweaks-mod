@@ -104,7 +104,7 @@ jobs:
           java: 21
 
           # mc-publish は自動ビルドもできますが、ここでは生成済みJARを渡して確実に公開
-          files: build/libs/*-remapped.jar
+          files: build/libs/*[!sources][!dev].jar
 
           # --- GitHub Release 連携（同名タグ） ---
           github-token: ${{ secrets.GITHUB_TOKEN }}
