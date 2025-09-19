@@ -1,0 +1,113 @@
+name: Publish alpha
+
+on:
+  push:
+    tags: ['alpha', 'beta', 'release']
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - uses: actions/setup-java@v4
+        with: { distribution: 'temurin', java-version: '21' }
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - id: ch
+        name: Parse channel
+        shell: bash
+        run: |
+          case "${GITHUB_REF_NAME}" in
+            alpha|beta|release) echo "channel=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT ;;
+            *) echo "Unsupported tag"; exit 1 ;;
+          esac
+
+      - id: mc
+        name: Detect Minecraft version
+        shell: bash
+        run: |
+          set -euo pipefail
+          MC=""
+          if [[ -f gradle.properties ]]; then
+            MC="$(sed -nE 's/^[[:space:]]*minecraft_version[[:space:]]*=[[:space:]]*([0-9][0-9.]*)/\1/p' gradle.properties | head -n1 || true)"
+          fi
+          [[ -n "$MC" ]] || { echo "MC version not found"; exit 1; }
+          echo "mc=$MC" >> $GITHUB_OUTPUT
+          echo "Detected MC=$MC"
+
+      - id: ver
+        name: Compute next version & push permanent tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          CH="${{ steps.ch.outputs.channel }}"
+          MC="${{ steps.mc.outputs.mc }}"
+
+          LAST_RELEASE="$(git tag --list "v[0-9]*+mc${MC}" --sort=-v:refname \
+                          | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+\+mc'"${MC}"'$' \
+                          | head -n1 || true)"
+          if [[ -z "$LAST_RELEASE" ]]; then
+            MA=0; MI=1; PA=0
+          else
+            V="${LAST_RELEASE%%+mc*}"; V="${V#v}"
+            IFS=. read -r MA MI PA <<< "$V"
+          fi
+
+          BASE_NEXT="${MA}.${MI}.$((PA+1))"
+
+          make_pre() {
+            local kind="$1"
+            local last="$(git tag --list "v${BASE_NEXT}-${kind}.*+mc${MC}" --sort=-v:refname | head -n1 || true)"
+            if [[ -z "$last" ]]; then echo 1; else
+              echo $(( $(sed -nE 's/^v[0-9]+\.[0-9]+\.[0-9]+-'${kind}'\.([0-9]+)\+mc.+/\1/p' <<<"$last") + 1 ))
+            fi
+          }
+
+          if [[ "$CH" == "release" ]]; then
+            VERSION="${BASE_NEXT}"
+          elif [[ "$CH" == "beta" ]]; then
+            VERSION="${BASE_NEXT}-beta.$(make_pre beta)"
+          else
+            VERSION="${BASE_NEXT}-alpha.$(make_pre alpha)"
+          fi
+
+          PERM_TAG="v${VERSION}+mc${MC}"
+          echo "version=$VERSION"   >> $GITHUB_OUTPUT
+          echo "perm_tag=$PERM_TAG" >> $GITHUB_OUTPUT
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$PERM_TAG" -m "Auto ${CH} for MC ${MC}"
+          git push origin "$PERM_TAG"
+
+      - name: Build (override mod_version at CI)
+        run: ./gradlew clean build --stacktrace -Pmod_version=${{ steps.ver.outputs.version }}
+
+      - name: Publish to Modrinth & GitHub (mc-publish)
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          # --- Modrinth ---
+          modrinth-id: jWHdryID
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+
+          # --- バージョン表記・チャンネル ---
+          version: ${{ steps.ver.outputs.perm_tag }}          # 表示名は恒久タグ文字列（好みで v なしにしてもOK）
+          version-type: ${{ steps.ch.outputs.channel }}       # release | beta | alpha
+
+          loaders: fabric
+          game-versions: ${{ steps.mc.outputs.mc }}
+          java: 21
+
+          # mc-publish は自動ビルドもできますが、ここでは生成済みJARを渡して確実に公開
+          files: build/libs/*-remapped.jar
+
+          # --- GitHub Release 連携（同名タグ） ---
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-tag: ${{ steps.ver.outputs.perm_tag }}
+          github-prerelease: ${{ steps.ch.outputs.channel != 'release' }}
+          github-draft: false
