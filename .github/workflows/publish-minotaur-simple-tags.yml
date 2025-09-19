@@ -119,15 +119,12 @@ jobs:
           CHANNEL:     ${{ steps.ch.outputs.channel }}   # alpha | beta | release
           VERSION_TAG: ${{ steps.ver.outputs.perm_tag }} # 例: v1.2.3-beta.4+mc1.21.8
           MC_VERSION:  ${{ steps.mc.outputs.mc }}        # 例: 1.21.8
-          MODRINTH_ID: YOUR_MODRINTH_PROJECT_ID          # ←自分の Modrinth Project ID に置換
+          MODRINTH_ID: jWHdryID          # ←自分の Modrinth Project ID に置換
         run: |
           set -euo pipefail
 
           # ---- メタ情報 ----
-          REPO="${GITHUB_REPOSITORY}"
-          SHA_SHORT="$(git rev-parse --short HEAD)"
           NOW_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          GH_RELEASE_URL="https://github.com/${REPO}/releases/tag/${VERSION_TAG}"
           MODRINTH_VER_URL="https://modrinth.com/mod/${MODRINTH_ID}/version/${VERSION_TAG}"
 
           # ---- チャンネル別の外観（色・タイトルアイコン・pre-release表記）----
@@ -156,10 +153,7 @@ jobs:
           esac
 
           # ---- CHANGELOG 抜粋（長すぎるとエラーになるので先頭60行を簡易抜粋）----
-          CHANGELOG_SNIP="$(sed -n '1,60p' CHANGELOG.md 2>/dev/null || true)"
-          if [ -z "${CHANGELOG_SNIP}" ]; then
-            CHANGELOG_SNIP="Released for Minecraft **${MC_VERSION}**."
-          fi
+          CHANGELOG_SNIP="Released for Minecraft **${MC_VERSION}**."
           # JSON 文字列用に最低限のエスケープ
           CHANGELOG_SNIP="${CHANGELOG_SNIP//\\/\\\\}"
           CHANGELOG_SNIP="${CHANGELOG_SNIP//\"/\\\"}"
@@ -171,17 +165,15 @@ jobs:
             "embeds": [
               {
                 "title": "${TITLE_PREFIX}: ${VERSION_TAG}",
-                "url": "${GH_RELEASE_URL}",
+                "url": "${MODRINTH_VER_URL}",
                 "description": "${CHANGELOG_SNIP}",
                 "color": ${COLOR},
                 "fields": [
                   { "name": "Channel",   "value": "${CHANNEL}",       "inline": true },
                   { "name": "Stability", "value": "${PRERELEASE_LABEL}", "inline": true },
                   { "name": "Minecraft", "value": "${MC_VERSION}",    "inline": true },
-                  { "name": "Modrinth",  "value": "${MODRINTH_VER_URL}" },
-                  { "name": "GitHub",    "value": "${GH_RELEASE_URL}" }
+                  { "name": "Modrinth",  "value": "${MODRINTH_VER_URL}" }
                 ],
-                "footer": { "text": "Commit ${SHA_SHORT} • ${REPO}" },
                 "timestamp": "${NOW_UTC}"
               }
             ],
@@ -189,8 +181,7 @@ jobs:
               {
                 "type": 1,
                 "components": [
-                  { "type": 2, "style": 5, "label": "View on Modrinth", "url": "${MODRINTH_VER_URL}" },
-                  { "type": 2, "style": 5, "label": "GitHub Release",   "url": "${GH_RELEASE_URL}" }
+                  { "type": 2, "style": 5, "label": "View on Modrinth", "url": "${MODRINTH_VER_URL}" }
                 ]
               }
             ]
