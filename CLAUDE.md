@@ -39,14 +39,28 @@ gradle genSources
 - **設定ファイル**: `fabric.mod.json` - モッドの定義とエントリーポイント
 - **Mixinファイル**: `stream-tweaks.mixins.json` - コード注入の設定（現在は空）
 
-### 認証システム (auth パッケージ)
+### 認証システム (twitch.auth パッケージ)
 - **TwitchOAuthClient**: Twitch OAuth2認証のメインクライアント
-  - `getAccessToken()` - アクセストークンの取得（キャッシュ対応）
-  - `authorize()` - OAuth2認証フロー（ローカルコールバックサーバー使用）
+  - `getAccessToken(scopes, onRequiresUserInteraction)` - スコープ指定でアクセストークン取得
+  - `authorize(scopes, onRequiresUserInteraction)` - OAuth2認証フロー（ローカルコールバックサーバー使用）
 - **TwitchCredentialStore**: 認証情報の永続化 (Gson使用、設定ディレクトリに保存)
 - **TwitchCredentials**: 認証情報を格納するデータクラス
 - **AuthResult**: 認証結果を格納するクラス（トークンと認証タイプ）
 - **LocalHttpCallbackServer**: OAuth2コールバック用のローカルHTTPサーバー
+
+### EventSub WebSocket システム (twitch.eventsub パッケージ)
+- **WebSocketClient**: Twitch EventSub WebSocketへの接続クライアント
+  - `wss://eventsub.wss.twitch.tv/ws` への接続
+  - Welcome、Keepalive、Notification、Reconnect、Revocationメッセージ処理
+  - 自動再接続機能（reconnect_url対応）
+  - Ping/Pong自動応答
+- **EventSubManager**: EventSub購読とWebSocket管理の上位レベルAPI
+  - `subscribeToChannelUpdate()` - チャンネル更新イベント購読
+  - `subscribeToStreamOnline/Offline()` - 配信開始/終了イベント購読
+  - `subscribeToChannelFollow()` - フォローイベント購読
+  - サブスクリプション作成・削除・一覧取得
+- **EventSubMessage**: EventSubメッセージの構造体とメタデータ
+- **SessionInfo**: WebSocketセッション情報（ID、ステータス、keepalive設定など）
 
 ### 技術スタック
 - **Fabric Mod** (Minecraft 1.21.8, Yarn mappings 1.21.8+build.1)
@@ -67,4 +81,26 @@ gradle genSources
 - OAuth2認証は非同期で処理し、ユーザーインタラクション（ブラウザでの認証）が必要な場合はコールバックで通知
 - 認証情報は暗号化なしでローカル保存（開発段階）
 - AuthResultクラスでキャッシュされたトークンと新規認証を区別
+- EventSub WebSocketは自動再接続機能付きで堅牢な接続を維持
+- WebSocketとEventSub API両方を組み合わせたイベント購読システム
+- Java 21の標準WebSocketクライアントとHTTPクライアントを使用
 - Mixinシステム準備済み（現在は空の設定）
+
+## 使用例
+```java
+// EventSub WebSocketクライアントの使用例
+TwitchOAuthClient oauthClient = new TwitchOAuthClient();
+EventSubManager eventSub = new EventSubManager(oauthClient);
+
+eventSub.setMessageHandler(message -> {
+    // イベント通知の処理
+    StreamTweaks.LOGGER.info("Received event: {}", message.metadata.subscriptionType);
+});
+
+eventSub.connect().thenAccept(sessionInfo -> {
+    StreamTweaks.LOGGER.info("Connected to EventSub: {}", sessionInfo.id);
+
+    // 配信開始イベントを購読
+    eventSub.subscribeToStreamOnline("broadcaster_id");
+});
+```
