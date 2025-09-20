@@ -50,7 +50,7 @@ public final class LocalHttpCallbackServer implements AutoCloseable {
                                     // フラグメントをサーバーに送信
                                     const params = new URLSearchParams(fragment);
                                     const queryString = params.toString();
-                        
+
                                     // サーバーに再度リクエストを送信（今度はクエリパラメータとして）
                                     window.location.href = window.location.pathname + '?' + queryString;
                                 } else {
@@ -88,7 +88,8 @@ public final class LocalHttpCallbackServer implements AutoCloseable {
     static final class QueryString {
         static Map<String, String> parse(String q) {
             java.util.HashMap<String, String> m = new java.util.HashMap<>();
-            if (q == null || q.isEmpty()) return m;
+            if (q == null || q.isEmpty())
+                return m;
             for (String kv : q.split("&")) {
                 int i = kv.indexOf('=');
                 String k = i >= 0 ? kv.substring(0, i) : kv;
