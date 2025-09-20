@@ -1,5 +1,6 @@
 package org.etwas.streamtweaks.twitch.eventsub;
 
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -13,29 +14,24 @@ import org.etwas.streamtweaks.utils.ThreadPools;
 
 public final class EventSubManager implements WebSocketClient.Listener, KeepaliveMonitor.Handler {
     private static final String DEFAULT_EVENTSUB_URL = "wss://eventsub.wss.twitch.tv/ws";
-
-    private final WebSocketClient ws;
-    private final HelixClient helix;
-    private final Set<SubscriptionSpec> desired;
-    private final ScheduledExecutorService scheduler;
-    private final KeepaliveMonitor keepalive;
     private final String eventSubUrl;
-    private final Map<SubscriptionSpec, String> subscriptionIds;
+
+    private final WebSocketClient ws = new TwitchWebSocketClient();
+    private final Set<SubscriptionSpec> desired = new HashSet<>();
+    private final ScheduledExecutorService scheduler = ThreadPools.singleScheduler("eventsub-scheduler");
+    private final KeepaliveMonitor keepalive = new KeepaliveMonitor(this, java.time.Duration.ofSeconds(5), scheduler);
+    private final Map<SubscriptionSpec, String> subscriptionIds = new ConcurrentHashMap<>();
+    private final HelixClient helix;
 
     private volatile String sessionId;
 
-    public EventSubManager(WebSocketClient ws, HelixClient helix, Set<SubscriptionSpec> desired) {
-        this(ws, helix, desired, DEFAULT_EVENTSUB_URL);
+    public EventSubManager(HelixClient helix) {
+        this(helix, DEFAULT_EVENTSUB_URL);
     }
 
-    public EventSubManager(WebSocketClient ws, HelixClient helix, Set<SubscriptionSpec> desired, String eventSubUrl) {
-        this.ws = ws;
+    public EventSubManager(HelixClient helix, String eventSubUrl) {
         this.helix = helix;
-        this.desired = desired;
         this.eventSubUrl = Objects.requireNonNull(eventSubUrl, "eventSubUrl");
-        this.scheduler = ThreadPools.singleScheduler("eventsub-scheduler");
-        this.keepalive = new KeepaliveMonitor(this, java.time.Duration.ofSeconds(5), scheduler);
-        this.subscriptionIds = new ConcurrentHashMap<>();
     }
 
     public void addDesired(SubscriptionSpec spec) {
