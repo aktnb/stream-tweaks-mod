@@ -1,4 +1,4 @@
-package org.etwas.streamtweaks.twitch;
+package org.etwas.streamtweaks.twitch.api;
 
 import java.net.URI;
 import java.net.http.HttpClient;

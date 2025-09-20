@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.etwas.streamtweaks.StreamTweaks;
-import org.etwas.streamtweaks.twitch.HelixClient;
+import org.etwas.streamtweaks.twitch.api.HelixClient;
 import org.etwas.streamtweaks.utils.KeepaliveMonitor;
 import org.etwas.streamtweaks.utils.ThreadPools;
 
