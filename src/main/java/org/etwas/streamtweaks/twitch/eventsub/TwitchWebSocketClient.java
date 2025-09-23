@@ -160,12 +160,13 @@ public final class TwitchWebSocketClient implements WebSocketClient {
 
         @Override
         public void onOpen(WebSocket webSocket) {
-            StreamTweaks.LOGGER.debug("[WS] onOpen");
+            StreamTweaks.devLogger("[WS] onOpen");
             webSocket.request(1);
         }
 
         @Override
         public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
+            StreamTweaks.devLogger("[WS] onText (len=" + data.length() + ", last=" + last + ")");
             textBuf.append(data);
             if (last) {
                 String json = textBuf.toString();
@@ -179,6 +180,7 @@ public final class TwitchWebSocketClient implements WebSocketClient {
         @Override
         public CompletionStage<?> onBinary(WebSocket webSocket, ByteBuffer data, boolean last) {
             // EventSub はテキスト JSON
+            StreamTweaks.devLogger("[WS] onBinary (ignored)");
             webSocket.request(1);
             return CompletableFuture.completedFuture(null);
         }
@@ -186,6 +188,7 @@ public final class TwitchWebSocketClient implements WebSocketClient {
         @Override
         public CompletionStage<?> onPing(WebSocket webSocket, ByteBuffer message) {
             // java.net.http.WebSocket は自動で Pong 返す
+            StreamTweaks.devLogger("[WS] onPing");
             webSocket.request(1);
             return CompletableFuture.completedFuture(null);
         }
@@ -198,7 +201,7 @@ public final class TwitchWebSocketClient implements WebSocketClient {
 
         @Override
         public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
-            StreamTweaks.LOGGER.debug("[WS] onClose code=" + statusCode + " reason=" + reason);
+            StreamTweaks.devLogger("[WS] onClose code=" + statusCode + " reason=" + reason);
             ws = null;
             fireClosed(statusCode, reason);
             scheduleReconnectIfAllowed("closed");
@@ -207,7 +210,7 @@ public final class TwitchWebSocketClient implements WebSocketClient {
 
         @Override
         public void onError(WebSocket webSocket, Throwable error) {
-            StreamTweaks.LOGGER.debug("[WS] onError " + error);
+            StreamTweaks.devLogger("[WS] onError " + error);
             fireError(error);
             scheduleReconnectIfAllowed("error");
         }
@@ -225,7 +228,7 @@ public final class TwitchWebSocketClient implements WebSocketClient {
                 case "session_reconnect" -> handleReconnect(root);
                 case "notification" -> handleNotification(root);
                 case "revocation" -> handleRevocation(root);
-                default -> StreamTweaks.LOGGER.warn("[WS] unknown message_type: " + type);
+                default -> StreamTweaks.devLogger("[WS] unknown message_type: " + type);
             }
         } catch (Throwable t) {
             fireError(t);

@@ -50,6 +50,8 @@ public final class HelixClient {
      */
     public CompletableFuture<CreateSubscriptionResponse> createEventSubSubscription(SubscriptionSpec subscription,
             String sessionId) {
+        StreamTweaks.devLogger("Creating EventSub subscription: type=" + subscription.type() + ", version="
+                + subscription.version() + ", condition=" + subscription.condition() + ", sessionId=" + sessionId);
         if (accessToken == null || clientId == null) {
             return CompletableFuture.failedFuture(new IllegalStateException("認証情報が設定されていません"));
         }
@@ -249,6 +251,42 @@ public final class HelixClient {
                 })
                 .exceptionally(throwable -> {
                     StreamTweaks.LOGGER.error("Get users by login request failed", throwable);
+                    return GetUsersResponse.error(-1, throwable.getMessage());
+                });
+    }
+
+    /**
+     * Get Current User (Authenticated User)
+     *
+     * @return CompletableFuture<GetUsersResponse>
+     */
+    public CompletableFuture<GetUsersResponse> getCurrentUser() {
+        if (accessToken == null || clientId == null) {
+            return CompletableFuture.failedFuture(new IllegalStateException("認証情報が設定されていません"));
+        }
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(USERS_ENDPOINT))
+                .header("Authorization", "Bearer " + accessToken)
+                .header("Client-Id", clientId)
+                .GET()
+                .build();
+
+        return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(response -> {
+                    StreamTweaks.LOGGER.debug("Get current user response: {} {}", response.statusCode(),
+                            response.body());
+
+                    if (response.statusCode() == 200) {
+                        JsonObject responseJson = JsonParser.parseString(response.body()).getAsJsonObject();
+                        return GetUsersResponse.success(responseJson);
+                    } else {
+                        String errorBody = response.body();
+                        return GetUsersResponse.error(response.statusCode(), errorBody);
+                    }
+                })
+                .exceptionally(throwable -> {
+                    StreamTweaks.LOGGER.error("Get current user request failed", throwable);
                     return GetUsersResponse.error(-1, throwable.getMessage());
                 });
     }

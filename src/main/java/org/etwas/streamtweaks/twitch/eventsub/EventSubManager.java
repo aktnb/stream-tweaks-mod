@@ -1,6 +1,5 @@
 package org.etwas.streamtweaks.twitch.eventsub;
 
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -17,7 +16,7 @@ public final class EventSubManager implements WebSocketClient.Listener, Keepaliv
     private final String eventSubUrl;
 
     private final WebSocketClient ws = new TwitchWebSocketClient();
-    private final Set<SubscriptionSpec> desired = new HashSet<>();
+    private final Set<SubscriptionSpec> desired = ConcurrentHashMap.newKeySet();
     private final ScheduledExecutorService scheduler = ThreadPools.singleScheduler("eventsub-scheduler");
     private final KeepaliveMonitor keepalive = new KeepaliveMonitor(this, java.time.Duration.ofSeconds(5), scheduler);
     private final Map<SubscriptionSpec, String> subscriptionIds = new ConcurrentHashMap<>();
@@ -32,6 +31,7 @@ public final class EventSubManager implements WebSocketClient.Listener, Keepaliv
     public EventSubManager(HelixClient helix, String eventSubUrl) {
         this.helix = helix;
         this.eventSubUrl = Objects.requireNonNull(eventSubUrl, "eventSubUrl");
+        this.ws.setListener(this);
     }
 
     public void addDesired(SubscriptionSpec spec) {
@@ -81,6 +81,8 @@ public final class EventSubManager implements WebSocketClient.Listener, Keepaliv
 
     @Override
     public void onWelcome(SessionInfo info) {
+        StreamTweaks.LOGGER.info("EventSub WebSocket connected, sessionId={}, keepaliveTimeout={}s",
+                info.sessionId(), info.keepaliveTimeout());
         this.sessionId = info.sessionId();
         keepalive.start(info.keepaliveTimeout());
         subscriptionIds.clear();
@@ -108,6 +110,7 @@ public final class EventSubManager implements WebSocketClient.Listener, Keepaliv
     @Override
     public void onNotification(String type, String json) {
         StreamTweaks.LOGGER.info("Received EventSub notification: type={}, json={}", type, json);
+        keepalive.onKeepalive();
     }
 
     @Override

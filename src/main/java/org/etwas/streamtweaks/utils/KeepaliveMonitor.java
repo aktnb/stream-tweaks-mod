@@ -3,10 +3,9 @@ package org.etwas.streamtweaks.utils;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-
-import io.netty.util.concurrent.ScheduledFuture;
 
 public final class KeepaliveMonitor implements AutoCloseable {
     public interface Handler {
@@ -53,7 +52,7 @@ public final class KeepaliveMonitor implements AutoCloseable {
         cancelScheduled();
         final long myGen = generation.incrementAndGet();
         long delay = timeout.toMillis() + safetyMarginMillis;
-        scheduled = (ScheduledFuture<?>) scheduler.schedule(() -> {
+        scheduled = scheduler.schedule(() -> {
             // 直近で再スケジュールが走っていないかを世代で確認（古いタスクの実行を防ぐ）
             if (generation.get() == myGen) {
                 handler.onTimeout();
