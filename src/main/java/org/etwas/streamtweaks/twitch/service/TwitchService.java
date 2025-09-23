@@ -93,7 +93,8 @@ public final class TwitchService {
                         }
                     }
 
-                    StreamTweaks.LOGGER.info("Got Twitch access token: {} (type: {})", result.token, result.authType);
+                    StreamTweaks.devLogger(
+                            "Got Twitch access token: %s (type: %s)".formatted(result.token, result.authType));
                 })
                 .whenComplete((ignored, throwable) -> {
                     if (throwable != null) {
@@ -206,8 +207,8 @@ public final class TwitchService {
                         TwitchUser currentUser = response.users().get(0);
                         String authenticatedUserId = currentUser.id();
 
-                        StreamTweaks.LOGGER.info("Authenticated user ID: {} ({})", authenticatedUserId,
-                                currentUser.displayName());
+                        StreamTweaks.devLogger("Authenticated user ID: %s (%s)"
+                                .formatted(authenticatedUserId, currentUser.displayName()));
 
                         try {
                             SubscriptionSpec chatSubscription = new SubscriptionSpec(
@@ -219,8 +220,9 @@ public final class TwitchService {
 
                             subscriptionManager.addDesired(chatSubscription);
 
-                            StreamTweaks.LOGGER.info("Chat subscription added: broadcaster={}, user={}",
-                                    normalizedBroadcasterUserId, authenticatedUserId);
+                            StreamTweaks.devLogger(
+                                    "Chat subscription added: broadcaster=%s, user=%s".formatted(
+                                            normalizedBroadcasterUserId, authenticatedUserId));
 
                             return CompletableFuture.completedFuture(chatSubscription);
                         } catch (Exception e) {

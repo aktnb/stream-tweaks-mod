@@ -14,6 +14,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 import static org.etwas.streamtweaks.StreamTweaks.LOGGER;
+import static org.etwas.streamtweaks.StreamTweaks.devLogger;
 
 public class TwitchOAuthClient {
     private final Gson GSON = new GsonBuilder().create();
@@ -95,7 +96,7 @@ public class TwitchOAuthClient {
                         return;
                     }
 
-                    LOGGER.info("Obtained new access token for user: {}", validation.login);
+                    devLogger("Obtained new access token for user: %s".formatted(validation.login));
                     var credentials = store.loadOrCreate();
                     credentials.accessToken = accessToken;
                     credentials.login = validation.login;

@@ -111,7 +111,7 @@ public final class EventSubManager implements WebSocketClient.Listener, Keepaliv
 
     @Override
     public void onNotification(String type, String json) {
-        StreamTweaks.LOGGER.info("Received EventSub notification: type={}, json={}", type, json);
+        StreamTweaks.devLogger("Received EventSub notification: type=%s, json=%s".formatted(type, json));
         keepalive.onKeepalive();
     }
 

@@ -131,7 +131,7 @@ public final class TwitchWebSocketClient implements WebSocketClient {
         if (!reconnectAllowed || lastUrl == null)
             return;
         long delay = backoff.nextBackoffMillis();
-        StreamTweaks.LOGGER.debug("[WS] schedule reconnect in " + delay + " ms (" + reason + ")");
+        StreamTweaks.devLogger("[WS] schedule reconnect in %d ms (%s)".formatted(delay, reason));
         ScheduledFuture<?> future = scheduler.schedule(() -> {
             try {
                 connect(lastUrl);

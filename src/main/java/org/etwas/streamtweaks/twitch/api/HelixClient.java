@@ -76,8 +76,9 @@ public final class HelixClient {
 
         return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(response -> {
-                    StreamTweaks.LOGGER.debug("EventSub subscription response: {} {}", response.statusCode(),
-                            response.body());
+                    StreamTweaks.devLogger(
+                            "EventSub subscription response: %s %s".formatted(response.statusCode(),
+                                    response.body()));
 
                     if (response.statusCode() == 202) {
                         JsonObject responseJson = JsonParser.parseString(response.body()).getAsJsonObject();
@@ -112,8 +113,9 @@ public final class HelixClient {
 
         return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(response -> {
-                    StreamTweaks.LOGGER.debug("EventSub subscriptions list response: {} {}", response.statusCode(),
-                            response.body());
+                    StreamTweaks.devLogger(
+                            "EventSub subscriptions list response: %s %s".formatted(response.statusCode(),
+                                    response.body()));
 
                     if (response.statusCode() == 200) {
                         JsonObject responseJson = JsonParser.parseString(response.body()).getAsJsonObject();
@@ -151,8 +153,9 @@ public final class HelixClient {
 
         return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(response -> {
-                    StreamTweaks.LOGGER.debug("EventSub subscription delete response: {} {}", response.statusCode(),
-                            response.body());
+                    StreamTweaks.devLogger(
+                            "EventSub subscription delete response: %s %s".formatted(response.statusCode(),
+                                    response.body()));
 
                     if (response.statusCode() == 204) {
                         return DeleteSubscriptionResponse.success();
@@ -189,8 +192,8 @@ public final class HelixClient {
 
         return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(response -> {
-                    StreamTweaks.LOGGER.debug("Get user by login response: {} {}", response.statusCode(),
-                            response.body());
+                    StreamTweaks.devLogger(
+                            "Get user by login response: %s %s".formatted(response.statusCode(), response.body()));
 
                     if (response.statusCode() == 200) {
                         JsonObject responseJson = JsonParser.parseString(response.body()).getAsJsonObject();
@@ -238,8 +241,8 @@ public final class HelixClient {
 
         return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(response -> {
-                    StreamTweaks.LOGGER.debug("Get users by login response: {} {}", response.statusCode(),
-                            response.body());
+                    StreamTweaks.devLogger(
+                            "Get users by login response: %s %s".formatted(response.statusCode(), response.body()));
 
                     if (response.statusCode() == 200) {
                         JsonObject responseJson = JsonParser.parseString(response.body()).getAsJsonObject();
@@ -274,8 +277,8 @@ public final class HelixClient {
 
         return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(response -> {
-                    StreamTweaks.LOGGER.debug("Get current user response: {} {}", response.statusCode(),
-                            response.body());
+                    StreamTweaks.devLogger(
+                            "Get current user response: %s %s".formatted(response.statusCode(), response.body()));
 
                     if (response.statusCode() == 200) {
                         JsonObject responseJson = JsonParser.parseString(response.body()).getAsJsonObject();

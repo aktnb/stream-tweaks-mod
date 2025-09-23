@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 import static org.etwas.streamtweaks.StreamTweaks.LOGGER;
+import static org.etwas.streamtweaks.StreamTweaks.devLogger;
 
 public final class LocalHttpCallbackServer implements AutoCloseable {
     private final HttpServer server;
@@ -22,12 +23,12 @@ public final class LocalHttpCallbackServer implements AutoCloseable {
         server.createContext(path, exchange -> {
             var uri = exchange.getRequestURI();
             var query = uri.getRawQuery();
-            LOGGER.info("Received callback request - URI: {}, Query: {}", uri, query);
+            devLogger("Received callback request - URI: %s, Query: %s".formatted(uri, query));
 
             // クエリパラメータがあればそれを処理 (通常の場合)
             if (query != null && !query.isEmpty()) {
                 var params = QueryString.parse(query);
-                LOGGER.info("Parsed parameters: {}", params);
+                devLogger("Parsed parameters: %s".formatted(params));
 
                 var response = "<html><body>✅ You can close this window.</body></html>";
                 exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
