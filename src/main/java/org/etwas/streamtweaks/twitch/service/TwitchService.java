@@ -3,6 +3,7 @@ package org.etwas.streamtweaks.twitch.service;
 import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.etwas.streamtweaks.StreamTweaks;
@@ -46,47 +47,59 @@ public final class TwitchService {
         return instance;
     }
 
-    public void ensureAuthenticated() {
-        try {
-            oauthClient.getAccessToken(new String[] { "user:read:chat" }, url -> {
-                MutableText msg = Text.literal("[StreamTweaks] 認証が必要です．")
-                        .formatted(Formatting.YELLOW)
-                        .append(
-                                Text.literal("ここをクリックして認証を行ってください．")
-                                        .styled(style -> style
-                                                .withColor(Formatting.AQUA)
-                                                .withUnderline(true)
-                                                .withClickEvent(new ClickEvent.OpenUrl(URI.create(url)))
-                                                .withHoverEvent(
-                                                        new HoverEvent.ShowText(Text.literal("クリックしてブラウザで開く")))));
-                MinecraftClient client = MinecraftClient.getInstance();
-                client.execute(() -> {
-                    if (client.player != null) {
-                        client.player.sendMessage(msg, false);
+    public CompletableFuture<Void> ensureAuthenticated() {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return oauthClient.getAccessToken(new String[] { "user:read:chat" }, url -> {
+                    MutableText msg = Text.literal("[StreamTweaks] 認証が必要です．")
+                            .formatted(Formatting.YELLOW)
+                            .append(Text.literal("ここをクリックして認証を行ってください．")
+                                    .styled(style -> style
+                                            .withColor(Formatting.AQUA)
+                                            .withUnderline(true)
+                                            .withClickEvent(new ClickEvent.OpenUrl(URI.create(url)))
+                                            .withHoverEvent(
+                                                    new HoverEvent.ShowText(Text.literal("クリックしてブラウザで開く")))));
+                    MinecraftClient client = MinecraftClient.getInstance();
+                    if (client != null) {
+                        client.execute(() -> {
+                            if (client.player != null) {
+                                client.player.sendMessage(msg, false);
+                            }
+                        });
                     }
                 });
-            })
-                    .thenAccept(result -> {
-                        MinecraftClient client = MinecraftClient.getInstance();
-                        if (result != null && result.token != null) {
-                            helixClient.setCredentials(result.token, oauthClient.CLIENT_ID);
+            } catch (Exception e) {
+                throw new CompletionException(e);
+            }
+        }).thenCompose(authFuture -> authFuture)
+                .thenAccept(result -> {
+                    if (result == null || result.token == null) {
+                        throw new CompletionException(new IllegalStateException("Twitch access token was not obtained"));
+                    }
 
-                            if (result.authType == AuthType.NEW_AUTHORIZATION) {
-                                MutableText msg = Text.literal("[StreamTweaks] 認証が完了しました．")
-                                        .formatted(Formatting.GREEN);
-                                client.execute(() -> {
-                                    if (client.player != null) {
-                                        client.player.sendMessage(msg, false);
-                                    }
-                                });
-                            }
-                            StreamTweaks.LOGGER.info("Got Twitch access token: {} (type: {})", result.token,
-                                    result.authType);
+                    helixClient.setCredentials(result.token, oauthClient.CLIENT_ID);
+
+                    if (result.authType == AuthType.NEW_AUTHORIZATION) {
+                        MutableText msg = Text.literal("[StreamTweaks] 認証が完了しました．")
+                                .formatted(Formatting.GREEN);
+                        MinecraftClient client = MinecraftClient.getInstance();
+                        if (client != null) {
+                            client.execute(() -> {
+                                if (client.player != null) {
+                                    client.player.sendMessage(msg, false);
+                                }
+                            });
                         }
-                    });
-        } catch (Exception e) {
-            StreamTweaks.LOGGER.error("Failed to get Twitch access token", e);
-        }
+                    }
+
+                    StreamTweaks.LOGGER.info("Got Twitch access token: {} (type: {})", result.token, result.authType);
+                })
+                .whenComplete((ignored, throwable) -> {
+                    if (throwable != null) {
+                        StreamTweaks.LOGGER.error("Failed to get Twitch access token", throwable);
+                    }
+                });
     }
 
     public CompletableFuture<String> connectToChannel(String channelLogin) {
@@ -97,9 +110,8 @@ public final class TwitchService {
         String normalizedLogin = channelLogin.toLowerCase().trim();
         StreamTweaks.LOGGER.info("Connecting to channel: {}", normalizedLogin);
 
-        ensureAuthenticated();
-
-        return helixClient.getUserByLogin(normalizedLogin)
+        return ensureAuthenticated()
+                .thenCompose(ignored -> helixClient.getUserByLogin(normalizedLogin))
                 .thenCompose(response -> {
                     if (response.isSuccess() && !response.users().isEmpty()) {
                         TwitchUser user = response.users().get(0);
@@ -154,8 +166,15 @@ public final class TwitchService {
                     }
                 })
                 .exceptionally(throwable -> {
-                    String errorMsg = "チャンネル接続に失敗しました: " + throwable.getMessage();
-                    StreamTweaks.LOGGER.error(errorMsg, throwable);
+                    Throwable cause = throwable instanceof CompletionException && throwable.getCause() != null
+                            ? throwable.getCause()
+                            : throwable;
+                    String detail = cause.getMessage();
+                    if (detail == null || detail.isBlank()) {
+                        detail = cause.getClass().getSimpleName();
+                    }
+                    String errorMsg = "チャンネル接続に失敗しました: " + detail;
+                    StreamTweaks.LOGGER.error(errorMsg, cause);
 
                     MinecraftClient client = MinecraftClient.getInstance();
                     if (client != null) {
@@ -169,7 +188,7 @@ public final class TwitchService {
                         });
                     }
 
-                    throw new RuntimeException(errorMsg, throwable);
+                    throw new RuntimeException(errorMsg, cause);
                 });
     }
 
