@@ -111,15 +111,41 @@ public final class TwitchService {
     }
 
     public CompletableFuture<String> connectToChannel(String channelLogin) {
-        if (channelLogin == null || channelLogin.trim().isEmpty()) {
-            return CompletableFuture.failedFuture(new IllegalArgumentException("チャンネル名が指定されていません"));
-        }
+        return ensureAuthenticated()
+                .thenCompose(ignored -> resolveTargetLogin(channelLogin))
+                .thenCompose(this::connectResolvedLogin)
+                .exceptionally(throwable -> {
+                    Throwable cause = throwable instanceof CompletionException && throwable.getCause() != null
+                            ? throwable.getCause()
+                            : throwable;
+                    String detail = cause.getMessage();
+                    if (detail == null || detail.isBlank()) {
+                        detail = cause.getClass().getSimpleName();
+                    }
+                    String errorMsg = "チャンネル接続に失敗しました: " + detail;
+                    StreamTweaks.LOGGER.error(errorMsg, cause);
 
-        String normalizedLogin = channelLogin.toLowerCase().trim();
+                    MinecraftClient client = MinecraftClient.getInstance();
+                    if (client != null) {
+                        MutableText msg = Text.literal("[StreamTweaks] " + errorMsg)
+                                .formatted(Formatting.RED);
+
+                        client.execute(() -> {
+                            if (client.player != null) {
+                                client.player.sendMessage(msg, false);
+                            }
+                        });
+                    }
+
+                    throw new RuntimeException(errorMsg, cause);
+                });
+    }
+
+    private CompletableFuture<String> connectResolvedLogin(String resolvedLogin) {
+        String normalizedLogin = resolvedLogin.toLowerCase().trim();
         StreamTweaks.LOGGER.info("Connecting to channel: {}", normalizedLogin);
 
-        return ensureAuthenticated()
-                .thenCompose(ignored -> helixClient.getUserByLogin(normalizedLogin))
+        return helixClient.getUserByLogin(normalizedLogin)
                 .thenCompose(response -> {
                     if (response.isSuccess() && !response.users().isEmpty()) {
                         TwitchUser user = response.users().get(0);
@@ -172,31 +198,34 @@ public final class TwitchService {
 
                         return CompletableFuture.failedFuture(new RuntimeException(errorMsg));
                     }
-                })
-                .exceptionally(throwable -> {
-                    Throwable cause = throwable instanceof CompletionException && throwable.getCause() != null
-                            ? throwable.getCause()
-                            : throwable;
-                    String detail = cause.getMessage();
+                });
+    }
+
+    private CompletableFuture<String> resolveTargetLogin(String channelLogin) {
+        if (channelLogin != null && !channelLogin.trim().isEmpty()) {
+            return CompletableFuture.completedFuture(channelLogin.trim());
+        }
+
+        StreamTweaks.LOGGER.info("Resolving Twitch channel using authorized user context");
+
+        return helixClient.getCurrentUser()
+                .thenCompose(response -> {
+                    if (response.isSuccess() && response.users() != null && !response.users().isEmpty()) {
+                        TwitchUser currentUser = response.users().get(0);
+                        String login = currentUser.login();
+                        if (login == null || login.isBlank()) {
+                            return CompletableFuture.failedFuture(
+                                    new IllegalStateException("認証されたユーザーのログイン名を取得できませんでした"));
+                        }
+                        StreamTweaks.devLogger("Using authorized user login: %s".formatted(login));
+                        return CompletableFuture.completedFuture(login.trim());
+                    }
+
+                    String detail = response.errorMessage();
                     if (detail == null || detail.isBlank()) {
-                        detail = cause.getClass().getSimpleName();
+                        detail = "認証されたユーザー情報の取得に失敗しました";
                     }
-                    String errorMsg = "チャンネル接続に失敗しました: " + detail;
-                    StreamTweaks.LOGGER.error(errorMsg, cause);
-
-                    MinecraftClient client = MinecraftClient.getInstance();
-                    if (client != null) {
-                        MutableText msg = Text.literal("[StreamTweaks] " + errorMsg)
-                                .formatted(Formatting.RED);
-
-                        client.execute(() -> {
-                            if (client.player != null) {
-                                client.player.sendMessage(msg, false);
-                            }
-                        });
-                    }
-
-                    throw new RuntimeException(errorMsg, cause);
+                    return CompletableFuture.failedFuture(new IllegalStateException(detail));
                 });
     }
 

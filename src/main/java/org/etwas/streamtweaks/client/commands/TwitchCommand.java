@@ -16,19 +16,33 @@ public final class TwitchCommand {
         dispatcher.register(
                 ClientCommandManager.literal("twitch")
                         .then(ClientCommandManager.literal("connect")
+                                .executes(TwitchCommand::connect)
                                 .then(ClientCommandManager.argument("login", StringArgumentType.word())
-                                        .executes(ctx -> TwitchCommand.connect(ctx))))
+                                        .executes(TwitchCommand::connectWithLogin)))
                         .then(ClientCommandManager.literal("disconnect")
                                 .executes(ctx -> TwitchCommand.disconnect(ctx))));
     }
 
     private static int connect(CommandContext<FabricClientCommandSource> context) {
-        String login = StringArgumentType.getString(context, "login");
+        return connect(context, null);
+    }
 
+    private static int connectWithLogin(CommandContext<FabricClientCommandSource> context) {
+        String login = StringArgumentType.getString(context, "login");
+        return connect(context, login);
+    }
+
+    private static int connect(CommandContext<FabricClientCommandSource> context, String login) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player != null) {
-            client.player.sendMessage(
-                    Text.literal("Trying to connect Twitch channel: " + login), false);
+            Text message;
+            if (login == null || login.isBlank()) {
+                message = Text.literal("[StreamTweaks] 認証済みユーザーのチャンネルへの接続を試みます。");
+            } else {
+                message = Text.literal("[StreamTweaks] チャンネル「" + login + "」への接続を試みます。");
+            }
+
+            client.player.sendMessage(message, false);
         }
 
         TwitchService.getInstance().connectToChannel(login);
