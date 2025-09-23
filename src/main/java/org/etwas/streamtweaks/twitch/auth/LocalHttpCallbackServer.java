@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 import static org.etwas.streamtweaks.StreamTweaks.LOGGER;
+import static org.etwas.streamtweaks.StreamTweaks.devLogger;
 
 public final class LocalHttpCallbackServer implements AutoCloseable {
     private final HttpServer server;
@@ -22,12 +23,12 @@ public final class LocalHttpCallbackServer implements AutoCloseable {
         server.createContext(path, exchange -> {
             var uri = exchange.getRequestURI();
             var query = uri.getRawQuery();
-            LOGGER.info("Received callback request - URI: {}, Query: {}", uri, query);
+            devLogger("Received callback request - URI: %s, Query: %s".formatted(uri, query));
 
             // クエリパラメータがあればそれを処理 (通常の場合)
             if (query != null && !query.isEmpty()) {
                 var params = QueryString.parse(query);
-                LOGGER.info("Parsed parameters: {}", params);
+                devLogger("Parsed parameters: %s".formatted(params));
 
                 var response = "<html><body>✅ You can close this window.</body></html>";
                 exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
@@ -50,7 +51,7 @@ public final class LocalHttpCallbackServer implements AutoCloseable {
                                     // フラグメントをサーバーに送信
                                     const params = new URLSearchParams(fragment);
                                     const queryString = params.toString();
-                        
+
                                     // サーバーに再度リクエストを送信（今度はクエリパラメータとして）
                                     window.location.href = window.location.pathname + '?' + queryString;
                                 } else {
@@ -88,7 +89,8 @@ public final class LocalHttpCallbackServer implements AutoCloseable {
     static final class QueryString {
         static Map<String, String> parse(String q) {
             java.util.HashMap<String, String> m = new java.util.HashMap<>();
-            if (q == null || q.isEmpty()) return m;
+            if (q == null || q.isEmpty())
+                return m;
             for (String kv : q.split("&")) {
                 int i = kv.indexOf('=');
                 String k = i >= 0 ? kv.substring(0, i) : kv;
