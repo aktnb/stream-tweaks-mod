@@ -14,6 +14,7 @@ import org.etwas.streamtweaks.twitch.auth.TwitchOAuthClient;
 import org.etwas.streamtweaks.twitch.eventsub.EventSubManager;
 import org.etwas.streamtweaks.twitch.eventsub.EventSubManager.EventNotification;
 import org.etwas.streamtweaks.twitch.eventsub.SubscriptionSpec;
+import org.etwas.streamtweaks.utils.ChatMessages;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -57,8 +58,8 @@ public final class TwitchService {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 return oauthClient.getAccessToken(new String[] { "user:read:chat" }, url -> {
-                    MutableText msg = Text.literal("[StreamTweaks] 認証が必要です．")
-                            .formatted(Formatting.YELLOW)
+                    MutableText msg = ChatMessages.streamTweaks(
+                            Text.literal("認証が必要です．").formatted(Formatting.YELLOW))
                             .append(Text.literal("ここをクリックして認証を行ってください．")
                                     .styled(style -> style
                                             .withColor(Formatting.AQUA)
@@ -88,8 +89,8 @@ public final class TwitchService {
                     helixClient.setCredentials(result.token, oauthClient.CLIENT_ID);
 
                     if (result.authType == AuthType.NEW_AUTHORIZATION) {
-                        MutableText msg = Text.literal("[StreamTweaks] 認証が完了しました．")
-                                .formatted(Formatting.GREEN);
+                        MutableText msg = ChatMessages.streamTweaks(
+                                Text.literal("認証が完了しました．").formatted(Formatting.GREEN));
                         MinecraftClient client = MinecraftClient.getInstance();
                         if (client != null) {
                             client.execute(() -> {
@@ -127,8 +128,8 @@ public final class TwitchService {
 
                     MinecraftClient client = MinecraftClient.getInstance();
                     if (client != null) {
-                        MutableText msg = Text.literal("[StreamTweaks] " + errorMsg)
-                                .formatted(Formatting.RED);
+                        MutableText msg = ChatMessages.streamTweaks(
+                                Text.literal(errorMsg).formatted(Formatting.RED));
 
                         client.execute(() -> {
                             if (client.player != null) {
@@ -165,8 +166,8 @@ public final class TwitchService {
 
                                     MinecraftClient client = MinecraftClient.getInstance();
                                     if (client != null) {
-                                        MutableText msg = Text.literal("[StreamTweaks] チャンネル「")
-                                                .formatted(Formatting.GREEN)
+                                        MutableText msg = ChatMessages.streamTweaks(
+                                                Text.literal("チャンネル「").formatted(Formatting.GREEN))
                                                 .append(Text.literal(user.displayName())
                                                         .formatted(Formatting.AQUA))
                                                 .append(Text.literal("」に接続しました。")
@@ -186,8 +187,8 @@ public final class TwitchService {
 
                         MinecraftClient client = MinecraftClient.getInstance();
                         if (client != null) {
-                            MutableText msg = Text.literal("[StreamTweaks] " + errorMsg)
-                                    .formatted(Formatting.RED);
+                            MutableText msg = ChatMessages.streamTweaks(
+                                    Text.literal(errorMsg).formatted(Formatting.RED));
 
                             client.execute(() -> {
                                 if (client.player != null) {
@@ -278,8 +279,8 @@ public final class TwitchService {
 
                     MinecraftClient client = MinecraftClient.getInstance();
                     if (client != null) {
-                        MutableText msg = Text.literal("[StreamTweaks] " + errorMsg)
-                                .formatted(Formatting.RED);
+                        MutableText msg = ChatMessages.streamTweaks(
+                                Text.literal(errorMsg).formatted(Formatting.RED));
 
                         client.execute(() -> {
                             if (client.player != null) {
@@ -299,8 +300,8 @@ public final class TwitchService {
 
             MinecraftClient client = MinecraftClient.getInstance();
             if (client != null) {
-                MutableText msg = Text.literal("[StreamTweaks] 切断できるチャンネルがありません。")
-                        .formatted(Formatting.YELLOW);
+                MutableText msg = ChatMessages.streamTweaks(
+                        Text.literal("切断できるチャンネルがありません。").formatted(Formatting.YELLOW));
                 client.execute(() -> {
                     if (client.player != null) {
                         client.player.sendMessage(msg, false);
@@ -316,8 +317,8 @@ public final class TwitchService {
 
         MinecraftClient client = MinecraftClient.getInstance();
         if (client != null) {
-            MutableText msg = Text.literal("[StreamTweaks] チャンネル「")
-                    .formatted(Formatting.YELLOW)
+            MutableText msg = ChatMessages.streamTweaks(
+                    Text.literal("チャンネル「").formatted(Formatting.YELLOW))
                     .append(Text.literal(channelName).formatted(Formatting.AQUA))
                     .append(Text.literal("」から切断しました。")
                             .formatted(Formatting.YELLOW));

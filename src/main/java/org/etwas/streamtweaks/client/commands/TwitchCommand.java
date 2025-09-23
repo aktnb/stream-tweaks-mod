@@ -1,6 +1,7 @@
 package org.etwas.streamtweaks.client.commands;
 
 import org.etwas.streamtweaks.twitch.service.TwitchService;
+import org.etwas.streamtweaks.utils.ChatMessages;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -37,9 +38,9 @@ public final class TwitchCommand {
         if (client.player != null) {
             Text message;
             if (login == null || login.isBlank()) {
-                message = Text.literal("[StreamTweaks] 認証済みユーザーのチャンネルへの接続を試みます。");
+                message = ChatMessages.streamTweaks("認証済みユーザーのチャンネルへの接続を試みます。");
             } else {
-                message = Text.literal("[StreamTweaks] チャンネル「" + login + "」への接続を試みます。");
+                message = ChatMessages.streamTweaks("チャンネル「" + login + "」への接続を試みます。");
             }
 
             client.player.sendMessage(message, false);
