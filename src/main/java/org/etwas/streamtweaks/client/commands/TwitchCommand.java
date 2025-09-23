@@ -17,10 +17,12 @@ public final class TwitchCommand {
                 ClientCommandManager.literal("twitch")
                         .then(ClientCommandManager.literal("connect")
                                 .then(ClientCommandManager.argument("login", StringArgumentType.word())
-                                        .executes(ctx -> TwitchCommand.execute(ctx)))));
+                                        .executes(ctx -> TwitchCommand.connect(ctx))))
+                        .then(ClientCommandManager.literal("disconnect")
+                                .executes(ctx -> TwitchCommand.disconnect(ctx))));
     }
 
-    private static int execute(CommandContext<FabricClientCommandSource> context) {
+    private static int connect(CommandContext<FabricClientCommandSource> context) {
         String login = StringArgumentType.getString(context, "login");
 
         MinecraftClient client = MinecraftClient.getInstance();
@@ -30,6 +32,18 @@ public final class TwitchCommand {
         }
 
         TwitchService.getInstance().connectToChannel(login);
+
+        return 1;
+    }
+
+    private static int disconnect(CommandContext<FabricClientCommandSource> context) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player != null) {
+            client.player.sendMessage(
+                    Text.literal("Disconnecting Twitch channel"), false);
+        }
+
+        TwitchService.getInstance().disconnect();
 
         return 1;
     }

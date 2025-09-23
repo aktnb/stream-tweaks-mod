@@ -55,8 +55,10 @@ public final class EventSubManager implements WebSocketClient.Listener, Keepaliv
             helix.deleteEventSubSubscription(subscriptionId);
         }
 
-        if (desired.isEmpty())
+        if (desired.isEmpty()) {
+            ws.allowReconnect(false);
             ws.close();
+        }
     }
 
     public void ensureConnected() {

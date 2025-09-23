@@ -3,6 +3,7 @@ package org.etwas.streamtweaks.twitch.service;
 import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.etwas.streamtweaks.StreamTweaks;
 import org.etwas.streamtweaks.twitch.api.HelixClient;
@@ -25,6 +26,11 @@ public final class TwitchService {
     private final HelixClient helixClient = new HelixClient();
     private final EventSubManager subscriptionManager = new EventSubManager(helixClient);
     private final TwitchOAuthClient oauthClient = new TwitchOAuthClient();
+    private final AtomicReference<ConnectionState> connectionState = new AtomicReference<>();
+
+    private record ConnectionState(String login, String displayName, String broadcasterUserId,
+            SubscriptionSpec chatSubscription) {
+    }
 
     private TwitchService() {
     }
@@ -117,7 +123,17 @@ public final class TwitchService {
                             });
                         }
 
-                        return subscribeToChat(userId).thenApply(v -> userId);
+                        return subscribeToChat(userId)
+                                .thenApply(subscription -> {
+                                    ConnectionState newState = new ConnectionState(normalizedLogin, user.displayName(),
+                                            userId, subscription);
+                                    ConnectionState previousState = connectionState.getAndSet(newState);
+                                    if (previousState != null && previousState.chatSubscription() != null
+                                            && !previousState.chatSubscription().equals(subscription)) {
+                                        subscriptionManager.removeDesired(previousState.chatSubscription());
+                                    }
+                                    return userId;
+                                });
                     } else {
                         String errorMsg = "チャンネル「" + normalizedLogin + "」が見つかりませんでした";
                         StreamTweaks.LOGGER.error(errorMsg);
@@ -157,7 +173,7 @@ public final class TwitchService {
                 });
     }
 
-    public CompletableFuture<Void> subscribeToChat(String broadcasterUserId) {
+    public CompletableFuture<SubscriptionSpec> subscribeToChat(String broadcasterUserId) {
         if (broadcasterUserId == null || broadcasterUserId.trim().isEmpty()) {
             return CompletableFuture.failedFuture(new IllegalArgumentException("ブロードキャスターユーザーIDが指定されていません"));
         }
@@ -199,16 +215,16 @@ public final class TwitchService {
                                 });
                             }
 
-                            return CompletableFuture.<Void>completedFuture(null);
+                            return CompletableFuture.completedFuture(chatSubscription);
                         } catch (Exception e) {
                             String errorMsg = "チャット購読の設定に失敗しました: " + e.getMessage();
                             StreamTweaks.LOGGER.error(errorMsg, e);
-                            return CompletableFuture.<Void>failedFuture(new RuntimeException(errorMsg, e));
+                            return CompletableFuture.<SubscriptionSpec>failedFuture(new RuntimeException(errorMsg, e));
                         }
                     } else {
                         String errorMsg = "認証されたユーザー情報の取得に失敗しました";
                         StreamTweaks.LOGGER.error(errorMsg);
-                        return CompletableFuture.<Void>failedFuture(new RuntimeException(errorMsg));
+                        return CompletableFuture.<SubscriptionSpec>failedFuture(new RuntimeException(errorMsg));
                     }
                 })
                 .exceptionally(throwable -> {
@@ -229,5 +245,43 @@ public final class TwitchService {
 
                     throw new RuntimeException(errorMsg, throwable);
                 });
+    }
+
+    public void disconnect() {
+        ConnectionState previousState = connectionState.getAndSet(null);
+        if (previousState == null || previousState.chatSubscription() == null) {
+            StreamTweaks.LOGGER.info("No active Twitch channel connection to disconnect.");
+
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client != null) {
+                MutableText msg = Text.literal("[StreamTweaks] 切断できるチャンネルがありません。")
+                        .formatted(Formatting.YELLOW);
+                client.execute(() -> {
+                    if (client.player != null) {
+                        client.player.sendMessage(msg, false);
+                    }
+                });
+            }
+            return;
+        }
+
+        subscriptionManager.removeDesired(previousState.chatSubscription());
+        String channelName = previousState.displayName() != null ? previousState.displayName() : previousState.login();
+        StreamTweaks.LOGGER.info("Disconnected from Twitch channel: {}", channelName);
+
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client != null) {
+            MutableText msg = Text.literal("[StreamTweaks] チャンネル「")
+                    .formatted(Formatting.YELLOW)
+                    .append(Text.literal(channelName).formatted(Formatting.AQUA))
+                    .append(Text.literal("」から切断しました。")
+                            .formatted(Formatting.YELLOW));
+
+            client.execute(() -> {
+                if (client.player != null) {
+                    client.player.sendMessage(msg, false);
+                }
+            });
+        }
     }
 }
