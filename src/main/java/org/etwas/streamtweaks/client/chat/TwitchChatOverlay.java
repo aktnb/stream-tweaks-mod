@@ -4,10 +4,13 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
+import org.etwas.streamtweaks.mixin.ChatHudAccessor;
+
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.ChatHud;
+import net.minecraft.client.gui.hud.ChatHudLine;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
@@ -21,6 +24,8 @@ public final class TwitchChatOverlay {
     private static final long FADE_END_MILLIS = 12_000L;
 
     private static final TwitchChatOverlay INSTANCE = new TwitchChatOverlay();
+    private static final float BACKGROUND_ALPHA_MULTIPLIER = 0.5F;
+    private static final float VANILLA_ALPHA_CUTOFF = 1.0E-5F;
 
     private TwitchChatOverlay() {
     }
@@ -57,9 +62,17 @@ public final class TwitchChatOverlay {
         double lineAdvance = 9.0 + lineSpacing * 9.0;
         float opacity = client.options.getChatOpacity().getValue().floatValue();
 
+        int vanillaRenderedLineCount = computeVanillaRenderedLineCount(chatHud, ticks, focused);
+        int scaledHeight = context.getScaledWindowHeight();
+        int vanillaBottomY = MathHelper.floor((scaledHeight - 40) / scale);
+        double overlayBottomY = vanillaRenderedLineCount > 0
+                ? vanillaBottomY - vanillaRenderedLineCount * lineAdvance
+                : vanillaBottomY;
+        double baseOffset = overlayBottomY - 9.0;
+
         context.getMatrices().pushMatrix();
-        context.getMatrices().translate(4.0F, 8.0F);
         context.getMatrices().scale(scale, scale);
+        context.getMatrices().translate(4.0F, 0.0F);
 
         int renderedLineCount = 0;
         int maxLines = Math.min(MAX_VISIBLE_LINES, (int) (chatHeight / Math.max(lineAdvance, 1.0)));
@@ -83,9 +96,11 @@ public final class TwitchChatOverlay {
                 }
 
                 OrderedText orderedText = wrapped.get(j);
-                int y = MathHelper.floor(-renderedLineCount * lineAdvance);
-                int backgroundColor = (int) (lineAlpha * 255.0F) << 24;
-                context.fill(-4, y - 2, chatWidth + 4, y + 9, backgroundColor);
+                int y = MathHelper.floor(-renderedLineCount * lineAdvance + baseOffset);
+                int backgroundAlpha = MathHelper.ceil(MathHelper.clamp(lineAlpha, 0.0F, 1.0F)
+                        * 255.0F * BACKGROUND_ALPHA_MULTIPLIER);
+                int backgroundColor = backgroundAlpha << 24;
+                context.fill(-4, y - 0, chatWidth + 4, y + 9, backgroundColor);
                 context.drawTextWithShadow(textRenderer, orderedText, 0, y,
                         ((int) (lineAlpha * 255.0F) << 24) | 0xFFFFFF);
 
@@ -94,6 +109,44 @@ public final class TwitchChatOverlay {
         }
 
         context.getMatrices().popMatrix();
+    }
+
+    private int computeVanillaRenderedLineCount(ChatHud chatHud, int currentTick, boolean focused) {
+        if (!(chatHud instanceof ChatHudAccessor accessor)) {
+            return 0;
+        }
+
+        List<ChatHudLine.Visible> visibleMessages = accessor.streamTweaks$getVisibleMessages();
+        if (visibleMessages.isEmpty()) {
+            return 0;
+        }
+
+        int clampedScroll = MathHelper.clamp(accessor.streamTweaks$getScrolledLines(), 0, visibleMessages.size());
+        int visibleLineCap = Math.min(chatHud.getVisibleLineCount(), visibleMessages.size());
+        int consideredLines = Math.min(visibleMessages.size() - clampedScroll, visibleLineCap);
+        if (consideredLines <= 0) {
+            return 0;
+        }
+
+        int renderedLines = 0;
+        for (int index = consideredLines - 1; index >= 0; index--) {
+            ChatHudLine.Visible line = visibleMessages.get(index + clampedScroll);
+            int age = currentTick - line.addedTime();
+            float lineAlpha = focused ? 1.0F : (float) getVanillaMessageOpacityMultiplier(age);
+            if (lineAlpha > VANILLA_ALPHA_CUTOFF) {
+                renderedLines++;
+            }
+        }
+
+        return renderedLines;
+    }
+
+    private static double getVanillaMessageOpacityMultiplier(int age) {
+        double value = age / 200.0;
+        value = 1.0 - value;
+        value *= 10.0;
+        value = MathHelper.clamp(value, 0.0, 1.0);
+        return value * value;
     }
 
     private MutableText buildLine(ChatMessage message) {
