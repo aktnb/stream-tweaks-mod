@@ -1,12 +1,16 @@
 package org.etwas.streamtweaks.twitch.service;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.etwas.streamtweaks.StreamTweaks;
+import org.etwas.streamtweaks.client.chat.ChatMessage;
+import org.etwas.streamtweaks.client.chat.ChatMessage.Source;
+import org.etwas.streamtweaks.client.chat.ChatMessageLog;
 import org.etwas.streamtweaks.twitch.api.HelixClient;
 import org.etwas.streamtweaks.twitch.api.HelixClient.TwitchUser;
 import org.etwas.streamtweaks.twitch.auth.AuthResult.AuthType;
@@ -312,6 +316,7 @@ public final class TwitchService {
         }
 
         subscriptionManager.removeDesired(previousState.chatSubscription());
+        ChatMessageLog.getInstance().clearSource(Source.TWITCH);
         String channelName = previousState.displayName() != null ? previousState.displayName() : previousState.login();
         StreamTweaks.LOGGER.info("Disconnected from Twitch channel: {}", channelName);
 
@@ -379,42 +384,27 @@ public final class TwitchService {
 
         String rawColor = optString(event, "color");
         TextColor twitchColor = adjustForReadability(parseTwitchColor(rawColor));
+        String messageId = optString(event, "message_id");
+        String chatterUserId = optString(event, "chatter_user_id");
+        String chatterLogin = optString(event, "chatter_user_login");
 
-        MutableText chatLine = Text.literal("[Twitch] ").formatted(Formatting.LIGHT_PURPLE);
-
-        MutableText nameComponent = Text.literal(displayName);
-        if (twitchColor != null) {
-            nameComponent = nameComponent.styled(style -> style.withColor(twitchColor));
-        } else {
-            nameComponent = nameComponent.formatted(Formatting.GOLD);
-        }
-
-        chatLine.append(nameComponent);
-
-        MutableText separator = Text.literal(isAction ? " " : ": ").formatted(Formatting.GRAY);
-        chatLine.append(separator);
-
-        MutableText body = Text.literal(text).formatted(Formatting.WHITE);
-        if (isAction) {
-            body = body.formatted(Formatting.ITALIC);
-            if (twitchColor != null) {
-                body = body.styled(style -> style.withColor(twitchColor));
-            }
-        }
-
-        chatLine.append(body);
+        ChatMessage chatMessage = new ChatMessage(
+                messageId,
+                chatterUserId,
+                chatterLogin,
+                displayName,
+                text,
+                isAction,
+                twitchColor,
+                Instant.now(),
+                Source.TWITCH);
 
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null) {
             return;
         }
 
-        final MutableText finalLine = chatLine;
-        client.execute(() -> {
-            if (client.player != null) {
-                client.player.sendMessage(finalLine, false);
-            }
-        });
+        client.execute(() -> ChatMessageLog.getInstance().add(chatMessage));
     }
 
     private static String optString(JsonObject object, String key) {
