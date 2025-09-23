@@ -12,13 +12,18 @@ import org.etwas.streamtweaks.twitch.api.HelixClient.TwitchUser;
 import org.etwas.streamtweaks.twitch.auth.AuthResult.AuthType;
 import org.etwas.streamtweaks.twitch.auth.TwitchOAuthClient;
 import org.etwas.streamtweaks.twitch.eventsub.EventSubManager;
+import org.etwas.streamtweaks.twitch.eventsub.EventSubManager.EventNotification;
 import org.etwas.streamtweaks.twitch.eventsub.SubscriptionSpec;
+
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.ClickEvent;
 import net.minecraft.text.HoverEvent;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
+import net.minecraft.text.TextColor;
 import net.minecraft.util.Formatting;
 
 public final class TwitchService {
@@ -34,6 +39,7 @@ public final class TwitchService {
     }
 
     private TwitchService() {
+        subscriptionManager.setNotificationHandler(this::handleEventSubNotification);
     }
 
     public static TwitchService getInstance() {
@@ -75,7 +81,8 @@ public final class TwitchService {
         }).thenCompose(authFuture -> authFuture)
                 .thenAccept(result -> {
                     if (result == null || result.token == null) {
-                        throw new CompletionException(new IllegalStateException("Twitch access token was not obtained"));
+                        throw new CompletionException(
+                                new IllegalStateException("Twitch access token was not obtained"));
                     }
 
                     helixClient.setCredentials(result.token, oauthClient.CLIENT_ID);
@@ -292,5 +299,154 @@ public final class TwitchService {
                 }
             });
         }
+    }
+
+    private void handleEventSubNotification(EventNotification notification) {
+        if (!"channel.chat.message".equals(notification.type())) {
+            return;
+        }
+
+        JsonObject event;
+        try {
+            event = JsonParser.parseString(notification.json()).getAsJsonObject();
+        } catch (Exception e) {
+            StreamTweaks.LOGGER.error("channel.chat.message 通知の解析に失敗しました", e);
+            return;
+        }
+
+        ConnectionState state = connectionState.get();
+        if (state == null) {
+            return;
+        }
+
+        String broadcasterId = optString(event, "broadcaster_user_id");
+        if (broadcasterId != null && !broadcasterId.equals(state.broadcasterUserId())) {
+            return;
+        }
+
+        JsonObject messageObj = event.has("message") && event.get("message").isJsonObject()
+                ? event.getAsJsonObject("message")
+                : null;
+
+        String text = optString(messageObj, "text");
+        if (text == null) {
+            text = "";
+        }
+
+        String displayName = firstNonBlank(optString(event, "chatter_user_name"),
+                optString(event, "chatter_user_login"),
+                "Unknown");
+
+        StreamTweaks.devLogger("Twitch chat message from %s: %s".formatted(displayName, text));
+
+        boolean isAction = "action".equalsIgnoreCase(optString(event, "message_type"));
+        if (!isAction && messageObj != null && messageObj.has("is_action")) {
+            try {
+                isAction = messageObj.get("is_action").getAsBoolean();
+            } catch (ClassCastException | IllegalStateException ignored) {
+            }
+        }
+
+        String rawColor = optString(event, "color");
+        TextColor twitchColor = adjustForReadability(parseTwitchColor(rawColor));
+
+        MutableText chatLine = Text.literal("[Twitch] ").formatted(Formatting.LIGHT_PURPLE);
+
+        MutableText nameComponent = Text.literal(displayName);
+        if (twitchColor != null) {
+            nameComponent = nameComponent.styled(style -> style.withColor(twitchColor));
+        } else {
+            nameComponent = nameComponent.formatted(Formatting.GOLD);
+        }
+
+        chatLine.append(nameComponent);
+
+        MutableText separator = Text.literal(isAction ? " " : ": ").formatted(Formatting.GRAY);
+        chatLine.append(separator);
+
+        MutableText body = Text.literal(text).formatted(Formatting.WHITE);
+        if (isAction) {
+            body = body.formatted(Formatting.ITALIC);
+            if (twitchColor != null) {
+                body = body.styled(style -> style.withColor(twitchColor));
+            }
+        }
+
+        chatLine.append(body);
+
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null) {
+            return;
+        }
+
+        final MutableText finalLine = chatLine;
+        client.execute(() -> {
+            if (client.player != null) {
+                client.player.sendMessage(finalLine, false);
+            }
+        });
+    }
+
+    private static String optString(JsonObject object, String key) {
+        if (object == null || key == null || !object.has(key) || object.get(key).isJsonNull()) {
+            return null;
+        }
+        try {
+            return object.get(key).getAsString();
+        } catch (ClassCastException | IllegalStateException e) {
+            return null;
+        }
+    }
+
+    private static String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private static TextColor parseTwitchColor(String hex) {
+        if (hex == null || hex.isBlank()) {
+            return null;
+        }
+        String normalized = hex.startsWith("#") ? hex.substring(1) : hex;
+        if (normalized.length() != 6) {
+            return null;
+        }
+        try {
+            int rgb = Integer.parseUnsignedInt(normalized, 16);
+            return TextColor.fromRgb(rgb);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static TextColor adjustForReadability(TextColor color) {
+        if (color == null) {
+            return null;
+        }
+
+        int rgb = color.getRgb();
+        int r = (rgb >> 16) & 0xFF;
+        int g = (rgb >> 8) & 0xFF;
+        int b = rgb & 0xFF;
+
+        double luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        double target = 160.0;
+        if (luminance >= target) {
+            return color;
+        }
+
+        double blend = Math.min(0.7, (target - luminance) / target);
+        int nr = (int) Math.round(r + (255 - r) * blend);
+        int ng = (int) Math.round(g + (255 - g) * blend);
+        int nb = (int) Math.round(b + (255 - b) * blend);
+
+        return TextColor.fromRgb((nr << 16) | (ng << 8) | nb);
     }
 }

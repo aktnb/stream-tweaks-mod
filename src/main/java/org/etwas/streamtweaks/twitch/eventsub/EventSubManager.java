@@ -5,6 +5,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Consumer;
 
 import org.etwas.streamtweaks.StreamTweaks;
 import org.etwas.streamtweaks.twitch.api.HelixClient;
@@ -21,6 +22,7 @@ public final class EventSubManager implements WebSocketClient.Listener, Keepaliv
     private final KeepaliveMonitor keepalive = new KeepaliveMonitor(this, java.time.Duration.ofSeconds(5), scheduler);
     private final Map<SubscriptionSpec, String> subscriptionIds = new ConcurrentHashMap<>();
     private final HelixClient helix;
+    private volatile Consumer<EventNotification> notificationHandler;
 
     private volatile String sessionId;
 
@@ -32,6 +34,10 @@ public final class EventSubManager implements WebSocketClient.Listener, Keepaliv
         this.helix = helix;
         this.eventSubUrl = Objects.requireNonNull(eventSubUrl, "eventSubUrl");
         this.ws.setListener(this);
+    }
+
+    public void setNotificationHandler(Consumer<EventNotification> handler) {
+        this.notificationHandler = handler;
     }
 
     public void addDesired(SubscriptionSpec spec) {
@@ -113,6 +119,15 @@ public final class EventSubManager implements WebSocketClient.Listener, Keepaliv
     public void onNotification(String type, String json) {
         StreamTweaks.devLogger("Received EventSub notification: type=%s, json=%s".formatted(type, json));
         keepalive.onKeepalive();
+
+        Consumer<EventNotification> handler = notificationHandler;
+        if (handler != null) {
+            try {
+                handler.accept(new EventNotification(type, json));
+            } catch (Exception e) {
+                StreamTweaks.LOGGER.error("Failed to handle EventSub notification", e);
+            }
+        }
     }
 
     @Override
@@ -139,5 +154,8 @@ public final class EventSubManager implements WebSocketClient.Listener, Keepaliv
         keepalive.close();
         scheduler.shutdownNow();
         ws.close();
+    }
+
+    public record EventNotification(String type, String json) {
     }
 }
