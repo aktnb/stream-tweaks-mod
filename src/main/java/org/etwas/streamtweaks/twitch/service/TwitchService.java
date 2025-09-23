@@ -107,22 +107,6 @@ public final class TwitchService {
 
                         StreamTweaks.LOGGER.info("Successfully found user: {} (ID: {})", user.displayName(), userId);
 
-                        MinecraftClient client = MinecraftClient.getInstance();
-                        if (client != null) {
-                            MutableText msg = Text.literal("[StreamTweaks] チャンネル「")
-                                    .formatted(Formatting.GREEN)
-                                    .append(Text.literal(user.displayName())
-                                            .formatted(Formatting.AQUA))
-                                    .append(Text.literal("」に接続しました。")
-                                            .formatted(Formatting.GREEN));
-
-                            client.execute(() -> {
-                                if (client.player != null) {
-                                    client.player.sendMessage(msg, false);
-                                }
-                            });
-                        }
-
                         return subscribeToChat(userId)
                                 .thenApply(subscription -> {
                                     ConnectionState newState = new ConnectionState(normalizedLogin, user.displayName(),
@@ -131,6 +115,22 @@ public final class TwitchService {
                                     if (previousState != null && previousState.chatSubscription() != null
                                             && !previousState.chatSubscription().equals(subscription)) {
                                         subscriptionManager.removeDesired(previousState.chatSubscription());
+                                    }
+
+                                    MinecraftClient client = MinecraftClient.getInstance();
+                                    if (client != null) {
+                                        MutableText msg = Text.literal("[StreamTweaks] チャンネル「")
+                                                .formatted(Formatting.GREEN)
+                                                .append(Text.literal(user.displayName())
+                                                        .formatted(Formatting.AQUA))
+                                                .append(Text.literal("」に接続しました。")
+                                                        .formatted(Formatting.GREEN));
+
+                                        client.execute(() -> {
+                                            if (client.player != null) {
+                                                client.player.sendMessage(msg, false);
+                                            }
+                                        });
                                     }
                                     return userId;
                                 });
@@ -202,18 +202,6 @@ public final class TwitchService {
 
                             StreamTweaks.LOGGER.info("Chat subscription added: broadcaster={}, user={}",
                                     normalizedBroadcasterUserId, authenticatedUserId);
-
-                            MinecraftClient client = MinecraftClient.getInstance();
-                            if (client != null) {
-                                MutableText msg = Text.literal("[StreamTweaks] チャット監視を開始しました。")
-                                        .formatted(Formatting.GREEN);
-
-                                client.execute(() -> {
-                                    if (client.player != null) {
-                                        client.player.sendMessage(msg, false);
-                                    }
-                                });
-                            }
 
                             return CompletableFuture.completedFuture(chatSubscription);
                         } catch (Exception e) {
