@@ -21,7 +21,7 @@ import net.minecraft.util.math.MathHelper;
 public final class TwitchChatOverlay {
     private static final int MAX_VISIBLE_LINES = 100;
     private static final long FADE_START_MILLIS = 10_000L;
-    private static final long FADE_END_MILLIS = 12_000L;
+    private static final long FADE_END_MILLIS = 11_000L;
 
     private static final TwitchChatOverlay INSTANCE = new TwitchChatOverlay();
     private static final float BACKGROUND_ALPHA_MULTIPLIER = 0.5F;
