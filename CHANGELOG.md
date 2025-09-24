@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Twitch OAuth 認証
 - Twitch Chat　の Minecraft ゲーム内表示
+- Changelog の自動化
 
 ### Changed
 

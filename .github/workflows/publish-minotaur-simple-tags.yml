@@ -41,7 +41,7 @@ jobs:
           echo "Detected MC=$MC"
 
       - id: ver
-        name: Compute next version & push permanent tag
+        name: Compute next version
         shell: bash
         run: |
           set -euo pipefail
@@ -80,6 +80,56 @@ jobs:
           echo "version=$VERSION"   >> $GITHUB_OUTPUT
           echo "perm_tag=$PERM_TAG" >> $GITHUB_OUTPUT
 
+      - id: changelog
+        name: Prepare changelog notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          MODE="${{ steps.ch.outputs.channel }}"
+          NOTES_FILE="$RUNNER_TEMP/changelog.md"
+
+          if [[ "$MODE" == "release" ]]; then
+            python3 scripts/changelog_tool.py release \
+              --file CHANGELOG.md \
+              --version "${{ steps.ver.outputs.version }}" \
+              --notes-output "$NOTES_FILE" \
+              --update-file
+          else
+            python3 scripts/changelog_tool.py "$MODE" \
+              --file CHANGELOG.md \
+              --notes-output "$NOTES_FILE"
+          fi
+
+          NOTESC=$(cat "$NOTES_FILE")
+          NOTESC=${NOTESC//'%'/'%25'}
+          NOTESC=${NOTESC//$'\n'/'%0A'}
+          NOTESC=${NOTESC//$'\r'/'%0D'}
+          echo "notes=$NOTESC" >> "$GITHUB_OUTPUT"
+
+      - name: Commit changelog update
+        if: ${{ steps.ch.outputs.channel == 'release' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+          git checkout -B "$DEFAULT_BRANCH"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          if git diff --cached --quiet; then
+            echo "CHANGELOG に更新がありません"
+          else
+            git commit -m "docs: release ${{ steps.ver.outputs.version }}"
+            git push origin "$DEFAULT_BRANCH"
+          fi
+
+      - name: Create permanent tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          PERM_TAG="${{ steps.ver.outputs.perm_tag }}"
+          MC="${{ steps.mc.outputs.mc }}"
+          CH="${{ steps.ch.outputs.channel }}"
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag -a "$PERM_TAG" -m "Auto ${CH} for MC ${MC}"
@@ -111,6 +161,8 @@ jobs:
           github-tag: ${{ steps.ver.outputs.perm_tag }}
           github-prerelease: ${{ steps.ch.outputs.channel != 'release' }}
           github-draft: false
+          changelog: ${{ steps.changelog.outputs.notes }}
+          github-body: ${{ steps.changelog.outputs.notes }}
 
       - name: Notify Discord (all channels)
         if: ${{ success() }}   # 失敗時は送らない。送るなら always() に変更
