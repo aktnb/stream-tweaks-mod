@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Twitch Channel のチャット（テキストメッセージ）を Minecraft 内のゲームチャットに表示
+- Twitch OAuth 認証
+- Twitch Chat　の Minecraft ゲーム内表示
 
 ### Changed
 
