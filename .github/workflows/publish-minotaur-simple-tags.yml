@@ -100,10 +100,11 @@ jobs:
               --notes-output "$NOTES_FILE"
           fi
 
+          DELIM="STREAM_TWEAKS_$(date +%s%N)"
           {
-            echo "notes<<'EOF'"
+            echo "notes<<$DELIM"
             cat "$NOTES_FILE"
-            echo "EOF"
+            echo "$DELIM"
           } >> "$GITHUB_OUTPUT"
 
       - name: Commit changelog update
