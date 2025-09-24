@@ -100,11 +100,11 @@ jobs:
               --notes-output "$NOTES_FILE"
           fi
 
-          NOTESC=$(cat "$NOTES_FILE")
-          NOTESC=${NOTESC//'%'/'%25'}
-          NOTESC=${NOTESC//$'\n'/'%0A'}
-          NOTESC=${NOTESC//$'\r'/'%0D'}
-          echo "notes=$NOTESC" >> "$GITHUB_OUTPUT"
+          {
+            echo "notes<<'EOF'"
+            cat "$NOTES_FILE"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Commit changelog update
         if: ${{ steps.ch.outputs.channel == 'release' }}
