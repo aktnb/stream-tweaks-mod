@@ -162,7 +162,6 @@ jobs:
           github-prerelease: ${{ steps.ch.outputs.channel != 'release' }}
           github-draft: false
           changelog: ${{ steps.changelog.outputs.notes }}
-          github-body: ${{ steps.changelog.outputs.notes }}
 
       - name: Notify Discord (all channels)
         if: ${{ success() }}   # 失敗時は送らない。送るなら always() に変更
