@@ -7,10 +7,7 @@ on:
         description: 'Release channel'
         required: true
         type: choice
-        options:
-          - alpha
-          - beta
-          - release
+        options: [alpha, beta, release]
         default: 'alpha'
 
 jobs:
