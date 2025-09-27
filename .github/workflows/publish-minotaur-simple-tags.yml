@@ -32,13 +32,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          MC=""
-          if [[ -f gradle.properties ]]; then
-            MC="$(sed -nE 's/^[[:space:]]*minecraft_version[[:space:]]*=[[:space:]]*([0-9][0-9.]*)/\1/p' gradle.properties | head -n1 || true)"
+          MC_BRANCH="$(git branch --remote --contains HEAD --format='%(refname:short)' \
+            | sed -E 's|^origin/||' \
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' \
+            | head -n1 || true)"
+
+          if [[ -z "$MC_BRANCH" ]]; then
+            echo "MC version branch not found"
+            exit 1
           fi
-          [[ -n "$MC" ]] || { echo "MC version not found"; exit 1; }
-          echo "mc=$MC" >> $GITHUB_OUTPUT
-          echo "Detected MC=$MC"
+
+          echo "mc=$MC_BRANCH" >> "$GITHUB_OUTPUT"
+          echo "Detected MC=$MC_BRANCH (from branch name)"
 
       - id: ver
         name: Read mod version
@@ -46,6 +51,7 @@ jobs:
         run: |
           set -euo pipefail
           MC="${{ steps.mc.outputs.mc }}"
+          CHANNEL="${{ steps.ch.outputs.channel }}"
 
           if [[ ! -f gradle.properties ]]; then
             echo "gradle.properties が見つかりません"
@@ -60,9 +66,35 @@ jobs:
           fi
 
           echo "Detected mod_version=$VERSION"
-          PERM_TAG="v${VERSION}+mc${MC}"
-          echo "version=$VERSION"   >> $GITHUB_OUTPUT
-          echo "perm_tag=$PERM_TAG" >> $GITHUB_OUTPUT
+
+          if [[ "$CHANNEL" != "release" ]]; then
+            TAG_PATTERN="v${VERSION}-${CHANNEL}.*+mc${MC}"
+            EXISTING_TAGS="$(git tag --list "$TAG_PATTERN" || true)"
+            NEXT_INDEX=1
+
+            if [[ -n "$EXISTING_TAGS" ]]; then
+              MAX_INDEX="$(sed -nE "s/^v${VERSION}-${CHANNEL}\.([0-9]+)\+mc${MC}$/\\1/p" <<< "$EXISTING_TAGS" | sort -n | tail -n1 || true)"
+              if [[ -n "$MAX_INDEX" ]]; then
+                NEXT_INDEX=$((MAX_INDEX + 1))
+              fi
+            fi
+
+            VERSION_WITH_SUFFIX="${VERSION}-${CHANNEL}.${NEXT_INDEX}"
+          else
+            VERSION_WITH_SUFFIX="$VERSION"
+          fi
+
+          PERM_TAG="v${VERSION_WITH_SUFFIX}+mc${MC}"
+
+          if [[ "$CHANNEL" == "release" ]]; then
+            if git rev-parse -q --verify "refs/tags/$PERM_TAG" >/dev/null; then
+              echo "恒久タグ $PERM_TAG は既に存在します (release チャンネルは上書きできません)"
+              exit 1
+            fi
+          fi
+
+          echo "version=$VERSION_WITH_SUFFIX" >> "$GITHUB_OUTPUT"
+          echo "perm_tag=$PERM_TAG"            >> "$GITHUB_OUTPUT"
 
       - id: changelog
         name: Prepare changelog notes
