@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- icon を追加
+- mod menu に対応
+
+### Changed
+
+### Fixed
+
+## [0.1.1] - 2025-09-27
+
+### Added
 - Twitch OAuth 認証
 - Twitch Chat　の Minecraft ゲーム内表示
 - Changelog の自動化
