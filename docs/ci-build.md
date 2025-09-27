@@ -21,7 +21,7 @@
 
 ### 成果物
 - `build/libs/*.jar` (sources, dev jarは除外)
-- アーティファクト名: `build-artifacts-javaXX`
+- アーティファクト名: `build-artifacts-javaXX-RUNID` (XX=Javaバージョン、RUNID=実行ID)
 - 保持期間: 7日間
 
 ## ローカルでの確認方法

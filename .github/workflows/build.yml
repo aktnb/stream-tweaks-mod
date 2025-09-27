@@ -34,7 +34,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: build-artifacts-java${{ matrix.java }}
+          name: build-artifacts-java${{ matrix.java }}-${{ github.run_id }}
           path: |
             build/libs/*.jar
             !build/libs/*-sources.jar
