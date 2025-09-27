@@ -41,41 +41,25 @@ jobs:
           echo "Detected MC=$MC"
 
       - id: ver
-        name: Compute next version
+        name: Read mod version
         shell: bash
         run: |
           set -euo pipefail
-          CH="${{ steps.ch.outputs.channel }}"
           MC="${{ steps.mc.outputs.mc }}"
 
-          LAST_RELEASE="$(git tag --list "v[0-9]*+mc${MC}" --sort=-v:refname \
-                          | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+\+mc'"${MC}"'$' \
-                          | head -n1 || true)"
-          if [[ -z "$LAST_RELEASE" ]]; then
-            MA=0; MI=1; PA=0
-          else
-            V="${LAST_RELEASE%%+mc*}"; V="${V#v}"
-            IFS=. read -r MA MI PA <<< "$V"
+          if [[ ! -f gradle.properties ]]; then
+            echo "gradle.properties が見つかりません"
+            exit 1
           fi
 
-          BASE_NEXT="${MA}.${MI}.$((PA+1))"
+          VERSION="$(sed -nE 's/^[[:space:]]*mod_version[[:space:]]*=[[:space:]]*([^[:space:]#]+).*$/\1/p' gradle.properties | head -n1 || true)"
 
-          make_pre() {
-            local kind="$1"
-            local last="$(git tag --list "v${BASE_NEXT}-${kind}.*+mc${MC}" --sort=-v:refname | head -n1 || true)"
-            if [[ -z "$last" ]]; then echo 1; else
-              echo $(( $(sed -nE 's/^v[0-9]+\.[0-9]+\.[0-9]+-'${kind}'\.([0-9]+)\+mc.+/\1/p' <<<"$last") + 1 ))
-            fi
-          }
-
-          if [[ "$CH" == "release" ]]; then
-            VERSION="${BASE_NEXT}"
-          elif [[ "$CH" == "beta" ]]; then
-            VERSION="${BASE_NEXT}-beta.$(make_pre beta)"
-          else
-            VERSION="${BASE_NEXT}-alpha.$(make_pre alpha)"
+          if [[ -z "$VERSION" ]]; then
+            echo "mod_version が gradle.properties で見つかりません"
+            exit 1
           fi
 
+          echo "Detected mod_version=$VERSION"
           PERM_TAG="v${VERSION}+mc${MC}"
           echo "version=$VERSION"   >> $GITHUB_OUTPUT
           echo "perm_tag=$PERM_TAG" >> $GITHUB_OUTPUT
