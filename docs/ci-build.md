@@ -21,7 +21,7 @@
 
 ### 成果物
 - `build/libs/*.jar` (sources, dev jarは除外)
-- アーティファクト名: `build-artifacts-javaXX-RUNID` (XX=Javaバージョン、RUNID=実行ID)
+- アーティファクト名: `build-artifacts-javaXX-COMMIT_HASH` (XX=Javaバージョン、COMMIT_HASH=コミットハッシュ)
 - 保持期間: 7日間
 
 ## ローカルでの確認方法
