@@ -10,6 +10,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         java: [21, 22]
     name: Build with Java ${{ matrix.java }}
@@ -25,6 +26,8 @@ jobs:
           java-version: ${{ matrix.java }}
 
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-home-cache-cleanup: true
 
       - name: Build
         run: ./gradlew build --stacktrace
