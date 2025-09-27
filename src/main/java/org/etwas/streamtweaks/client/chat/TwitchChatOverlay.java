@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
+import org.etwas.streamtweaks.config.StreamTweaksConfig;
 import org.etwas.streamtweaks.mixin.ChatHudAccessor;
 
 import net.minecraft.client.MinecraftClient;
@@ -18,6 +19,9 @@ import net.minecraft.text.TextColor;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.MathHelper;
 
+import me.shedaniel.autoconfig.AutoConfig;
+import me.shedaniel.autoconfig.ConfigHolder;
+
 public final class TwitchChatOverlay {
     private static final int MAX_VISIBLE_LINES = 100;
     private static final long FADE_START_MILLIS = 10_000L;
@@ -26,6 +30,8 @@ public final class TwitchChatOverlay {
     private static final TwitchChatOverlay INSTANCE = new TwitchChatOverlay();
     private static final float BACKGROUND_ALPHA_MULTIPLIER = 0.5F;
     private static final float VANILLA_ALPHA_CUTOFF = 1.0E-5F;
+    private static final ConfigHolder<StreamTweaksConfig> CONFIG_HOLDER = AutoConfig
+            .getConfigHolder(StreamTweaksConfig.class);
 
     private TwitchChatOverlay() {
     }
@@ -37,6 +43,11 @@ public final class TwitchChatOverlay {
     public void render(ChatHud chatHud, DrawContext context, int ticks, boolean focused) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null) {
+            return;
+        }
+
+        StreamTweaksConfig config = CONFIG_HOLDER.getConfig();
+        if (config == null || !config.showStreamChat) {
             return;
         }
 
