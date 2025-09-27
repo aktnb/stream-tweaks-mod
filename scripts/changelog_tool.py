@@ -13,7 +13,10 @@ import re
 import sys
 from typing import List, Tuple
 
-SECTION_HEADER_RE = re.compile(r"^## \[(?P<name>[^\]]+)\]\s*$", re.MULTILINE)
+SECTION_HEADER_RE = re.compile(
+    r"^## \[(?P<name>[^\]]+)\](?: - [^\n]+)?\s*$",
+    re.MULTILINE,
+)
 
 UNRELEASED_BODY_TEMPLATE = "\n\n### Added\n\n### Changed\n\n### Fixed\n"
 
