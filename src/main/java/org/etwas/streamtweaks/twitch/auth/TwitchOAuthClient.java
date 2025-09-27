@@ -19,7 +19,7 @@ import static org.etwas.streamtweaks.StreamTweaks.devLogger;
 public class TwitchOAuthClient {
     private final Gson GSON = new GsonBuilder().create();
     private final HttpClient http = HttpClient.newHttpClient();
-    private final TwitchCredentialStore store = new TwitchCredentialStore();
+    final TwitchCredentialStore store = new TwitchCredentialStore();
     public final String CLIENT_ID = "p5xrtcp49if1zj6b86y356htualkth";
 
     // シングルトンサーバーと現在のリクエスト管理
@@ -141,7 +141,7 @@ public class TwitchOAuthClient {
         return true;
     }
 
-    private TokenValidationResponse validateToken(String token) {
+    TokenValidationResponse validateToken(String token) {
         var request = HttpRequest.newBuilder(URI.create("https://id.twitch.tv/oauth2/validate"))
                 .setHeader("Authorization", "OAuth " + token)
                 .GET().build();

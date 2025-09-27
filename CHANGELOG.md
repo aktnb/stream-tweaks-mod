@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - mod menu に対応
 - config 画面追加（ClothConfig2 必須）
 - チャット描画設定を追加
+- ワールド開始時の自動Twitch認証機能を追加（設定でオン/オフ可能）
 
 ### Changed
 
