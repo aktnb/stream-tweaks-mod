@@ -115,6 +115,20 @@ public final class TwitchService {
                 });
     }
 
+    public boolean isAuthenticated() {
+        try {
+            var credentials = oauthClient.store.loadOrCreate();
+            if (credentials.accessToken == null) {
+                return false;
+            }
+            var validation = oauthClient.validateToken(credentials.accessToken);
+            return validation != null && validation.client_id.equals(oauthClient.CLIENT_ID);
+        } catch (Exception e) {
+            StreamTweaks.LOGGER.debug("Error checking authentication status", e);
+            return false;
+        }
+    }
+
     public CompletableFuture<String> connectToChannel(String channelLogin) {
         return ensureAuthenticated()
                 .thenCompose(ignored -> resolveTargetLogin(channelLogin))
