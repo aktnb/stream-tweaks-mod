@@ -162,6 +162,7 @@ jobs:
           # ---- メタ情報 ----
           NOW_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           MODRINTH_VER_URL="https://modrinth.com/mod/${MODRINTH_ID}/version/${VERSION_TAG}"
+          AVATAR_URL="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_SHA}/src/main/resources/assets/stream-tweaks/icon.png"
 
           # ---- チャンネル別の外観（色・タイトルアイコン・pre-release表記）----
           # Discord の color は 24bit 整数（例：0x2ECC71 = 3066993）
@@ -198,6 +199,7 @@ jobs:
           read -r -d '' JSON <<EOF || true
           {
             "username": "StreamTweaks Release Bot",
+            "avatar_url": "${AVATAR_URL}",
             "embeds": [
               {
                 "title": "${TITLE_PREFIX}: ${VERSION_TAG}",

@@ -3,8 +3,10 @@
   "id": "stream-tweaks",
   "version": "${version}",
   "name": "Stream Tweaks",
-  "description": "",
-  "authors": [],
+  "description": "A Fabric mod that displays Twitch chat directly in Minecraft, designed to enhance interaction during streams. Future updates will add moderation features such as message deletion and user bans.",
+  "authors": [
+    "etwas"
+  ],
   "contact": {},
   "license": "MIT",
   "icon": "assets/stream-tweaks/icon.png",
@@ -24,5 +26,14 @@
     "fabricloader": ">=${loader_version}",
     "fabric": "*",
     "minecraft": "${minecraft_version}"
+  },
+  "custom": {
+    "modmenu": {
+      "links": {
+        "modmenu.discord": "https://discord.gg/dvb7DRG6gd"
+      },
+      "badges": [],
+      "update_checker": true
+    }
   }
 }
