@@ -221,11 +221,28 @@ jobs:
               ;;
           esac
 
-          # ---- CHANGELOG 抜粋（長すぎるとエラーになるので先頭60行を簡易抜粋）----
-          CHANGELOG_SNIP="Released for Minecraft **${MC_VERSION}**."
-          # JSON 文字列用に最低限のエスケープ
-          CHANGELOG_SNIP="${CHANGELOG_SNIP//\\/\\\\}"
+          # ---- CHANGELOG 抜粋（長すぎるとエラーになるので先頭2000文字を抜粋）----
+          CHANGELOG_RAW="${{ steps.changelog.outputs.notes }}"
+          
+          # 空の場合はデフォルトメッセージ
+          if [[ -z "${CHANGELOG_RAW// }" ]]; then
+            CHANGELOG_RAW="Released for Minecraft **${MC_VERSION}**."
+          else
+            # Discord embed description の制限（4096文字）を考慮して2000文字でカット
+            if [[ ${#CHANGELOG_RAW} -gt 2000 ]]; then
+              CHANGELOG_RAW="${CHANGELOG_RAW:0:2000}..."
+            fi
+            # リリース用のプレフィックスを追加
+            CHANGELOG_RAW="Released for Minecraft **${MC_VERSION}**.
+
+${CHANGELOG_RAW}"
+          fi
+          
+          # JSON 文字列用にエスケープ
+          CHANGELOG_SNIP="${CHANGELOG_RAW//\\/\\\\}"
           CHANGELOG_SNIP="${CHANGELOG_SNIP//\"/\\\"}"
+          CHANGELOG_SNIP="${CHANGELOG_SNIP//$'\n'/\\n}"
+          CHANGELOG_SNIP="${CHANGELOG_SNIP//$'\r'/}"
 
           # ---- Embed 本文（リンクボタン付き）----
           read -r -d '' JSON <<EOF || true
