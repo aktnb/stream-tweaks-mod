@@ -1,8 +1,14 @@
-name: Publish alpha
+name: Manual Release
 
 on:
-  push:
-    tags: ['alpha', 'beta', 'release']
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 'Release channel'
+        required: true
+        type: choice
+        options: [alpha, beta, release]
+        default: 'alpha'
 
 jobs:
   publish:
@@ -22,10 +28,8 @@ jobs:
         name: Parse channel
         shell: bash
         run: |
-          case "${GITHUB_REF_NAME}" in
-            alpha|beta|release) echo "channel=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT ;;
-            *) echo "Unsupported tag"; exit 1 ;;
-          esac
+          echo "channel=${{ github.event.inputs.channel }}" >> $GITHUB_OUTPUT
+          echo "Selected channel: ${{ github.event.inputs.channel }}"
 
       - id: mc
         name: Detect Minecraft version
@@ -233,9 +237,8 @@ jobs:
               CHANGELOG_RAW="${CHANGELOG_RAW:0:2000}..."
             fi
             # リリース用のプレフィックスを追加
-            CHANGELOG_RAW="Released for Minecraft **${MC_VERSION}**.
-
-${CHANGELOG_RAW}"
+            CHANGELOG_PREFIX="Released for Minecraft **${MC_VERSION}**."
+            CHANGELOG_RAW="${CHANGELOG_PREFIX}"$'\n\n'"${CHANGELOG_RAW}"
           fi
           
           # JSON 文字列用にエスケープ
@@ -277,11 +280,3 @@ ${CHANGELOG_RAW}"
 
           curl -sS -X POST -H "Content-Type: application/json" \
             -d "${JSON}" "$WEBHOOK_URL"
-
-
-      - name: Delete trigger tag (alpha/beta/release)
-        if: always()
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git push origin :refs/tags/${{ steps.ch.outputs.channel }}
