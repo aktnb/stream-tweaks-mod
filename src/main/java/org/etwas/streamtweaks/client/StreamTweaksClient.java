@@ -20,18 +20,9 @@ public class StreamTweaksClient implements ClientModInitializer {
                 return;
             
             // Check for auto-authentication when joining world
-            try {
-                StreamTweaksConfig config = AutoConfig.getConfigHolder(StreamTweaksConfig.class).getConfig();
-                if (config.autoAuthOnWorldJoin) {
-                    TwitchService twitchService = TwitchService.getInstance();
-                    if (!twitchService.isAuthenticated()) {
-                        // Start authentication process automatically
-                        twitchService.ensureAuthenticated();
-                    }
-                }
-            } catch (Exception e) {
-                // Silently ignore errors to prevent crashes on world join
-                // Logging would be helpful for debugging but not critical for the user experience
+            StreamTweaksConfig config = AutoConfig.getConfigHolder(StreamTweaksConfig.class).getConfig();
+            if (config.autoAuthOnWorldJoin) {
+                TwitchService.getInstance().handleAutoAuthenticationOnWorldJoin();
             }
         });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {

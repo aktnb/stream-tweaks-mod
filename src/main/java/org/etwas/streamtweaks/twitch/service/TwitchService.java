@@ -129,6 +129,19 @@ public final class TwitchService {
         }
     }
 
+    public void handleAutoAuthenticationOnWorldJoin() {
+        try {
+            if (!isAuthenticated()) {
+                // Start authentication process automatically
+                ensureAuthenticated();
+            }
+        } catch (Exception e) {
+            // Silently ignore errors to prevent crashes on world join
+            // Logging would be helpful for debugging but not critical for the user experience
+            StreamTweaks.LOGGER.debug("Error during auto-authentication on world join", e);
+        }
+    }
+
     public CompletableFuture<String> connectToChannel(String channelLogin) {
         return ensureAuthenticated()
                 .thenCompose(ignored -> resolveTargetLogin(channelLogin))

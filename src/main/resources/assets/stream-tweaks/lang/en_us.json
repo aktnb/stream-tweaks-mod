@@ -1,3 +1,4 @@
 {
-    "text.autoconfig.stream-tweaks.option.showStreamChat": "Show Stream Chat"
+    "text.autoconfig.stream-tweaks.option.showStreamChat": "Show Stream Chat",
+    "text.autoconfig.stream-tweaks.option.autoAuthOnWorldJoin": "Auto Authentication on World Join"
 }
