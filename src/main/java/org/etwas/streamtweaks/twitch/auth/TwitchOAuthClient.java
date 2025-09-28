@@ -19,7 +19,7 @@ import static org.etwas.streamtweaks.StreamTweaks.devLogger;
 public class TwitchOAuthClient {
     private final Gson GSON = new GsonBuilder().create();
     private final HttpClient http = HttpClient.newHttpClient();
-    private final TwitchCredentialStore store = new TwitchCredentialStore();
+    public final TwitchCredentialStore store = new TwitchCredentialStore();
     public final String CLIENT_ID = "p5xrtcp49if1zj6b86y356htualkth";
 
     // シングルトンサーバーと現在のリクエスト管理
@@ -33,7 +33,8 @@ public class TwitchOAuthClient {
         if (credentials.accessToken != null) {
             var validation = validateToken(credentials.accessToken);
             if (validation != null && validation.client_id.equals(CLIENT_ID) && hasScopes(validation, scopes)) {
-                return CompletableFuture.completedFuture(new AuthResult(credentials.accessToken, AuthResult.AuthType.CACHED_TOKEN));
+                return CompletableFuture
+                        .completedFuture(new AuthResult(credentials.accessToken, AuthResult.AuthType.CACHED_TOKEN));
             }
         }
         return authorize(scopes, onRequiresUserInteraction);
@@ -104,7 +105,8 @@ public class TwitchOAuthClient {
                     currentTokenFuture.complete(new AuthResult(accessToken, AuthResult.AuthType.NEW_AUTHORIZATION));
                     cleanupServer();
                 } else if (params.containsKey("error")) {
-                    LOGGER.warn("OAuth Error: {} - {}", params.get("error"), params.getOrDefault("error_description", ""));
+                    LOGGER.warn("OAuth Error: {} - {}", params.get("error"),
+                            params.getOrDefault("error_description", ""));
                     currentTokenFuture.complete(null);
                     cleanupServer();
                 } else {
@@ -114,7 +116,6 @@ public class TwitchOAuthClient {
             }
         }
     }
-
 
     private void cleanupServer() {
         if (currentServer != null) {
@@ -141,7 +142,7 @@ public class TwitchOAuthClient {
         return true;
     }
 
-    private TokenValidationResponse validateToken(String token) {
+    public TokenValidationResponse validateToken(String token) {
         var request = HttpRequest.newBuilder(URI.create("https://id.twitch.tv/oauth2/validate"))
                 .setHeader("Authorization", "OAuth " + token)
                 .GET().build();
@@ -156,12 +157,12 @@ public class TwitchOAuthClient {
         return null;
     }
 
-    static class TokenValidationResponse {
-        String client_id;
-        String login;
-        String user_id;
-        int expires_in;
-        String[] scopes;
+    public static class TokenValidationResponse {
+        public String client_id;
+        public String login;
+        public String user_id;
+        public int expires_in;
+        public String[] scopes;
     }
 
 }

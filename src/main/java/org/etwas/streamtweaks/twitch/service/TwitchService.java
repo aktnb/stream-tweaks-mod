@@ -115,6 +115,38 @@ public final class TwitchService {
                 });
     }
 
+    public boolean isAuthenticated() {
+        try {
+            var credentials = oauthClient.store.loadOrCreate();
+            if (credentials.accessToken == null) {
+                return false;
+            }
+            var validation = oauthClient.validateToken(credentials.accessToken);
+            return validation != null && validation.client_id.equals(oauthClient.CLIENT_ID);
+        } catch (Exception e) {
+            StreamTweaks.LOGGER.debug("Error checking authentication status", e);
+            return false;
+        }
+    }
+
+    public void handleAutoAuthenticationOnWorldJoin() {
+        try {
+            if (!isAuthenticated()) {
+                // Start authentication process automatically
+                ensureAuthenticated().whenComplete((ignored, throwable) -> {
+                    if (throwable != null) {
+                        StreamTweaks.LOGGER.error("Error during auto-authentication on world join", throwable);
+                    }
+                });
+            }
+        } catch (Exception e) {
+            // Silently ignore errors to prevent crashes on world join
+            // Logging would be helpful for debugging but not critical for the user
+            // experience
+            StreamTweaks.LOGGER.debug("Error during auto-authentication on world join", e);
+        }
+    }
+
     public CompletableFuture<String> connectToChannel(String channelLogin) {
         return ensureAuthenticated()
                 .thenCompose(ignored -> resolveTargetLogin(channelLogin))
