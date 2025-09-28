@@ -33,7 +33,8 @@ public class TwitchOAuthClient {
         if (credentials.accessToken != null) {
             var validation = validateToken(credentials.accessToken);
             if (validation != null && validation.client_id.equals(CLIENT_ID) && hasScopes(validation, scopes)) {
-                return CompletableFuture.completedFuture(new AuthResult(credentials.accessToken, AuthResult.AuthType.CACHED_TOKEN));
+                return CompletableFuture
+                        .completedFuture(new AuthResult(credentials.accessToken, AuthResult.AuthType.CACHED_TOKEN));
             }
         }
         return authorize(scopes, onRequiresUserInteraction);
@@ -104,7 +105,8 @@ public class TwitchOAuthClient {
                     currentTokenFuture.complete(new AuthResult(accessToken, AuthResult.AuthType.NEW_AUTHORIZATION));
                     cleanupServer();
                 } else if (params.containsKey("error")) {
-                    LOGGER.warn("OAuth Error: {} - {}", params.get("error"), params.getOrDefault("error_description", ""));
+                    LOGGER.warn("OAuth Error: {} - {}", params.get("error"),
+                            params.getOrDefault("error_description", ""));
                     currentTokenFuture.complete(null);
                     cleanupServer();
                 } else {
@@ -114,7 +116,6 @@ public class TwitchOAuthClient {
             }
         }
     }
-
 
     private void cleanupServer() {
         if (currentServer != null) {

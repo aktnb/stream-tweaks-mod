@@ -18,7 +18,7 @@ public class StreamTweaksClient implements ClientModInitializer {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             if (client.player == null)
                 return;
-            
+
             // Check for auto-authentication when joining world
             StreamTweaksConfig config = AutoConfig.getConfigHolder(StreamTweaksConfig.class).getConfig();
             if (config.autoAuthOnWorldJoin) {

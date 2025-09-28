@@ -141,7 +141,8 @@ public final class TwitchService {
             }
         } catch (Exception e) {
             // Silently ignore errors to prevent crashes on world join
-            // Logging would be helpful for debugging but not critical for the user experience
+            // Logging would be helpful for debugging but not critical for the user
+            // experience
             StreamTweaks.LOGGER.debug("Error during auto-authentication on world join", e);
         }
     }

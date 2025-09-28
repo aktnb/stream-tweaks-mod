@@ -18,7 +18,8 @@ import static org.etwas.streamtweaks.StreamTweaks.LOGGER;
 
 public class TwitchCredentialStore {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private final Path file = FabricLoader.getInstance().getConfigDir().resolve(StreamTweaks.MOD_ID).resolve("twitch-credentials.json");
+    private final Path file = FabricLoader.getInstance().getConfigDir().resolve(StreamTweaks.MOD_ID)
+            .resolve("twitch-credentials.json");
 
     public TwitchCredentials loadOrCreate() {
         try {
@@ -36,13 +37,13 @@ public class TwitchCredentialStore {
         try {
             Files.createDirectories(file.getParent());
             var tmp = file.resolveSibling(file.getFileName() + ".tmp");
-            Files.writeString(tmp, GSON.toJson(credentials), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            Files.writeString(tmp, GSON.toJson(credentials), StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING);
             try {
                 if (Files.getFileStore(tmp).supportsFileAttributeView("posix")) {
                     Set<PosixFilePermission> perms = EnumSet.of(
                             PosixFilePermission.OWNER_READ,
-                            PosixFilePermission.OWNER_WRITE
-                    );
+                            PosixFilePermission.OWNER_WRITE);
                     Files.setPosixFilePermissions(tmp, perms);
                 }
             } catch (Exception e) {
