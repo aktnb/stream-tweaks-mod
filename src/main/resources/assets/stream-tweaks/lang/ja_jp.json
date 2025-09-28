@@ -1,4 +1,5 @@
 {
     "text.autoconfig.stream-tweaks.option.showStreamChat": "配信チャットを表示",
-    "text.autoconfig.stream-tweaks.option.autoAuthOnWorldJoin": "ワールド参加時の自動認証"
+    "text.autoconfig.stream-tweaks.option.autoAuthOnWorldJoin": "ワールド参加時の自動認証",
+    "text.autoconfig.stream-tweaks.option.autoDisconnectOnWorldLeave": "ワールド退出時の自動切断"
 }

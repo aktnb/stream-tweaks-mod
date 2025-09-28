@@ -25,6 +25,14 @@ public class StreamTweaksClient implements ClientModInitializer {
                 TwitchService.getInstance().handleAutoAuthenticationOnWorldJoin();
             }
         });
+        
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            // Check for auto-disconnect when leaving world
+            StreamTweaksConfig config = AutoConfig.getConfigHolder(StreamTweaksConfig.class).getConfig();
+            if (config.autoDisconnectOnWorldLeave) {
+                TwitchService.getInstance().disconnect(true); // Silent disconnect since player is leaving
+            }
+        });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             TwitchCommand.register(dispatcher);
         });

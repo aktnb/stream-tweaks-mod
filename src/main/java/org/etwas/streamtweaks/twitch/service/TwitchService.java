@@ -330,19 +330,25 @@ public final class TwitchService {
     }
 
     public void disconnect() {
+        disconnect(false);
+    }
+
+    public void disconnect(boolean silent) {
         ConnectionState previousState = connectionState.getAndSet(null);
         if (previousState == null || previousState.chatSubscription() == null) {
             StreamTweaks.LOGGER.info("No active Twitch channel connection to disconnect.");
 
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client != null) {
-                MutableText msg = ChatMessages.streamTweaks(
-                        Text.literal("切断できるチャンネルがありません。").formatted(Formatting.YELLOW));
-                client.execute(() -> {
-                    if (client.player != null) {
-                        client.player.sendMessage(msg, false);
-                    }
-                });
+            if (!silent) {
+                MinecraftClient client = MinecraftClient.getInstance();
+                if (client != null) {
+                    MutableText msg = ChatMessages.streamTweaks(
+                            Text.literal("切断できるチャンネルがありません。").formatted(Formatting.YELLOW));
+                    client.execute(() -> {
+                        if (client.player != null) {
+                            client.player.sendMessage(msg, false);
+                        }
+                    });
+                }
             }
             return;
         }
@@ -352,19 +358,21 @@ public final class TwitchService {
         String channelName = previousState.displayName() != null ? previousState.displayName() : previousState.login();
         StreamTweaks.LOGGER.info("Disconnected from Twitch channel: {}", channelName);
 
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client != null) {
-            MutableText msg = ChatMessages.streamTweaks(
-                    Text.literal("チャンネル「").formatted(Formatting.YELLOW))
-                    .append(Text.literal(channelName).formatted(Formatting.AQUA))
-                    .append(Text.literal("」から切断しました。")
-                            .formatted(Formatting.YELLOW));
+        if (!silent) {
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client != null) {
+                MutableText msg = ChatMessages.streamTweaks(
+                        Text.literal("チャンネル「").formatted(Formatting.YELLOW))
+                        .append(Text.literal(channelName).formatted(Formatting.AQUA))
+                        .append(Text.literal("」から切断しました。")
+                                .formatted(Formatting.YELLOW));
 
-            client.execute(() -> {
-                if (client.player != null) {
-                    client.player.sendMessage(msg, false);
-                }
-            });
+                client.execute(() -> {
+                    if (client.player != null) {
+                        client.player.sendMessage(msg, false);
+                    }
+                });
+            }
         }
     }
 

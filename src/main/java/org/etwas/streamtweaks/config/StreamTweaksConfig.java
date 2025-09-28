@@ -15,4 +15,11 @@ public class StreamTweaksConfig implements ConfigData {
      * Displays a clickable chat message for easy authentication.
      */
     public boolean autoAuthOnWorldJoin = true;
+
+    /**
+     * Automatically disconnect from Twitch channel when leaving a world.
+     * When enabled, any active Twitch channel connection will be terminated
+     * when the player disconnects from or leaves the world.
+     */
+    public boolean autoDisconnectOnWorldLeave = false;
 }
