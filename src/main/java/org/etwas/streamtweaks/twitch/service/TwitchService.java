@@ -133,7 +133,11 @@ public final class TwitchService {
         try {
             if (!isAuthenticated()) {
                 // Start authentication process automatically
-                ensureAuthenticated();
+                ensureAuthenticated().whenComplete((ignored, throwable) -> {
+                    if (throwable != null) {
+                        StreamTweaks.LOGGER.error("Error during auto-authentication on world join", throwable);
+                    }
+                });
             }
         } catch (Exception e) {
             // Silently ignore errors to prevent crashes on world join
