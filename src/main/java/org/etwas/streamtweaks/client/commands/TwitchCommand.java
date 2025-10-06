@@ -1,5 +1,6 @@
 package org.etwas.streamtweaks.client.commands;
 
+import org.etwas.streamtweaks.client.ui.MessageTexts;
 import org.etwas.streamtweaks.twitch.service.TwitchService;
 import org.etwas.streamtweaks.utils.ChatMessages;
 
@@ -9,7 +10,6 @@ import com.mojang.brigadier.context.CommandContext;
 
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
 
 public final class TwitchCommand {
@@ -50,11 +50,7 @@ public final class TwitchCommand {
     }
 
     private static int disconnect(CommandContext<FabricClientCommandSource> context) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player != null) {
-            client.player.sendMessage(
-                    Text.literal("Disconnecting Twitch channel"), false);
-        }
+        ChatMessages.sendMessage(() -> MessageTexts.disconnecting());
 
         TwitchService.getInstance().disconnect();
 
