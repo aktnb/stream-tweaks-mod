@@ -1,5 +1,11 @@
 package org.etwas.streamtweaks.utils;
 
+import java.net.URI;
+import java.util.function.Supplier;
+
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
@@ -25,5 +31,27 @@ public final class ChatMessages {
             base.append(content);
         }
         return base;
+    }
+
+    public static MutableText textWithLink(String text, URI link, String hoverText) {
+        return Text.literal(text)
+                .styled(style -> style
+                        .withColor(Formatting.AQUA)
+                        .withUnderline(true)
+                        .withClickEvent(new ClickEvent.OpenUrl(link))
+                        .withHoverEvent(new HoverEvent.ShowText(Text.literal(hoverText))));
+    }
+
+    public static void sendMessage(Supplier<MutableText> supplier) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client != null && client.player != null) {
+            Text message = supplier.get();
+            if (message != null)
+                client.execute(() -> client.player.sendMessage(message, false));
+        }
+    }
+
+    public static void sendMessage(MutableText message) {
+        sendMessage(() -> message);
     }
 }

@@ -22,7 +22,6 @@ public class TwitchOAuthClient {
     public final TwitchCredentialStore store = new TwitchCredentialStore();
     public final String CLIENT_ID = "p5xrtcp49if1zj6b86y356htualkth";
 
-    // シングルトンサーバーと現在のリクエスト管理
     private LocalHttpCallbackServer currentServer = null;
     private String currentState = null;
     private CompletableFuture<AuthResult> currentTokenFuture = null;
@@ -51,16 +50,13 @@ public class TwitchOAuthClient {
                 "&state=" + state;
 
         synchronized (authorizationLock) {
-            // 前のリクエストをキャンセル
             if (currentTokenFuture != null && !currentTokenFuture.isDone()) {
-                currentTokenFuture.complete(null); // キャンセル扱い
+                currentTokenFuture.complete(null);
             }
 
-            // 新しいリクエストを設定
             currentState = state;
             currentTokenFuture = new CompletableFuture<>();
 
-            // サーバーが起動していない場合のみ起動
             if (currentServer == null) {
                 try {
                     currentServer = new LocalHttpCallbackServer(7654, "/callback", this::handleCallback);
@@ -84,7 +80,6 @@ public class TwitchOAuthClient {
         synchronized (authorizationLock) {
             var receivedState = params.get("state");
 
-            // 最新のstateと一致する場合のみ処理
             if (currentState != null && currentState.equals(receivedState) &&
                     currentTokenFuture != null && !currentTokenFuture.isDone()) {
 

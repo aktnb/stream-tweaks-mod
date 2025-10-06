@@ -34,17 +34,15 @@ public final class TwitchCommand {
     }
 
     private static int connect(CommandContext<FabricClientCommandSource> context, String login) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player != null) {
+        ChatMessages.sendMessage(() -> {
             Text message;
             if (login == null || login.isBlank()) {
                 message = ChatMessages.streamTweaks("認証済みユーザーのチャンネルへの接続を試みます。");
             } else {
                 message = ChatMessages.streamTweaks("チャンネル「" + login + "」への接続を試みます。");
             }
-
-            client.player.sendMessage(message, false);
-        }
+            return message.copy();
+        });
 
         TwitchService.getInstance().connectToChannel(login);
 
