@@ -14,25 +14,26 @@ import me.shedaniel.autoconfig.serializer.GsonConfigSerializer;
 public class StreamTweaksClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
+
         AutoConfig.register(StreamTweaksConfig.class, GsonConfigSerializer::new);
+
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             if (client.player == null)
                 return;
 
-            // Check for auto-authentication when joining world
             StreamTweaksConfig config = AutoConfig.getConfigHolder(StreamTweaksConfig.class).getConfig();
-            if (config.autoAuthOnWorldJoin) {
+
+            if (config.autoAuthOnWorldJoin)
                 TwitchService.getInstance().handleAutoAuthenticationOnWorldJoin();
-            }
         });
-        
+
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
-            // Check for auto-disconnect when leaving world
             StreamTweaksConfig config = AutoConfig.getConfigHolder(StreamTweaksConfig.class).getConfig();
-            if (config.autoDisconnectOnWorldLeave) {
+
+            if (config.autoDisconnectOnWorldLeave)
                 TwitchService.getInstance().disconnect(true); // Silent disconnect since player is leaving
-            }
         });
+
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             TwitchCommand.register(dispatcher);
         });

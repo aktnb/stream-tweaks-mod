@@ -22,7 +22,6 @@ repositories {
         url = "https://maven.terraformersmc.com/"
     }
     maven {
-        name = "Shedaniel"
         url "https://maven.shedaniel.me/"
     }
 }

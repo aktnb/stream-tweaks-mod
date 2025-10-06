@@ -11,6 +11,7 @@ import org.etwas.streamtweaks.StreamTweaks;
 import org.etwas.streamtweaks.client.chat.ChatMessage;
 import org.etwas.streamtweaks.client.chat.ChatMessage.Source;
 import org.etwas.streamtweaks.client.chat.ChatMessageLog;
+import org.etwas.streamtweaks.client.ui.MessageTexts;
 import org.etwas.streamtweaks.twitch.api.HelixClient;
 import org.etwas.streamtweaks.twitch.api.HelixClient.TwitchUser;
 import org.etwas.streamtweaks.twitch.auth.AuthResult.AuthType;
@@ -18,18 +19,13 @@ import org.etwas.streamtweaks.twitch.auth.TwitchOAuthClient;
 import org.etwas.streamtweaks.twitch.eventsub.EventSubManager;
 import org.etwas.streamtweaks.twitch.eventsub.EventSubManager.EventNotification;
 import org.etwas.streamtweaks.twitch.eventsub.SubscriptionSpec;
-import org.etwas.streamtweaks.utils.ChatMessages;
+import org.etwas.streamtweaks.utils.ChatMessageUtil;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.HoverEvent;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
 import net.minecraft.text.TextColor;
-import net.minecraft.util.Formatting;
 
 public final class TwitchService {
     private static volatile TwitchService instance;
@@ -62,23 +58,7 @@ public final class TwitchService {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 return oauthClient.getAccessToken(new String[] { "user:read:chat" }, url -> {
-                    MutableText msg = ChatMessages.streamTweaks(
-                            Text.literal("認証が必要です．").formatted(Formatting.YELLOW))
-                            .append(Text.literal("ここをクリックして認証を行ってください．")
-                                    .styled(style -> style
-                                            .withColor(Formatting.AQUA)
-                                            .withUnderline(true)
-                                            .withClickEvent(new ClickEvent.OpenUrl(URI.create(url)))
-                                            .withHoverEvent(
-                                                    new HoverEvent.ShowText(Text.literal("クリックしてブラウザで開く")))));
-                    MinecraftClient client = MinecraftClient.getInstance();
-                    if (client != null) {
-                        client.execute(() -> {
-                            if (client.player != null) {
-                                client.player.sendMessage(msg, false);
-                            }
-                        });
-                    }
+                    ChatMessageUtil.sendMessage(() -> MessageTexts.promptAuthentication(URI.create(url)));
                 });
             } catch (Exception e) {
                 throw new CompletionException(e);
@@ -93,16 +73,7 @@ public final class TwitchService {
                     helixClient.setCredentials(result.token, oauthClient.CLIENT_ID);
 
                     if (result.authType == AuthType.NEW_AUTHORIZATION) {
-                        MutableText msg = ChatMessages.streamTweaks(
-                                Text.literal("認証が完了しました．").formatted(Formatting.GREEN));
-                        MinecraftClient client = MinecraftClient.getInstance();
-                        if (client != null) {
-                            client.execute(() -> {
-                                if (client.player != null) {
-                                    client.player.sendMessage(msg, false);
-                                }
-                            });
-                        }
+                        ChatMessageUtil.sendMessage(() -> MessageTexts.authenticated());
                     }
 
                     StreamTweaks.devLogger(
@@ -150,32 +121,7 @@ public final class TwitchService {
     public CompletableFuture<String> connectToChannel(String channelLogin) {
         return ensureAuthenticated()
                 .thenCompose(ignored -> resolveTargetLogin(channelLogin))
-                .thenCompose(this::connectResolvedLogin)
-                .exceptionally(throwable -> {
-                    Throwable cause = throwable instanceof CompletionException && throwable.getCause() != null
-                            ? throwable.getCause()
-                            : throwable;
-                    String detail = cause.getMessage();
-                    if (detail == null || detail.isBlank()) {
-                        detail = cause.getClass().getSimpleName();
-                    }
-                    String errorMsg = "チャンネル接続に失敗しました: " + detail;
-                    StreamTweaks.LOGGER.error(errorMsg, cause);
-
-                    MinecraftClient client = MinecraftClient.getInstance();
-                    if (client != null) {
-                        MutableText msg = ChatMessages.streamTweaks(
-                                Text.literal(errorMsg).formatted(Formatting.RED));
-
-                        client.execute(() -> {
-                            if (client.player != null) {
-                                client.player.sendMessage(msg, false);
-                            }
-                        });
-                    }
-
-                    throw new RuntimeException(errorMsg, cause);
-                });
+                .thenCompose(this::connectResolvedLogin);
     }
 
     private CompletableFuture<String> connectResolvedLogin(String resolvedLogin) {
@@ -200,38 +146,16 @@ public final class TwitchService {
                                         subscriptionManager.removeDesired(previousState.chatSubscription());
                                     }
 
-                                    MinecraftClient client = MinecraftClient.getInstance();
-                                    if (client != null) {
-                                        MutableText msg = ChatMessages.streamTweaks(
-                                                Text.literal("チャンネル「").formatted(Formatting.GREEN))
-                                                .append(Text.literal(user.displayName())
-                                                        .formatted(Formatting.AQUA))
-                                                .append(Text.literal("」に接続しました。")
-                                                        .formatted(Formatting.GREEN));
+                                    ChatMessageUtil
+                                            .sendMessage(() -> MessageTexts.channelConnected(user.displayName()));
 
-                                        client.execute(() -> {
-                                            if (client.player != null) {
-                                                client.player.sendMessage(msg, false);
-                                            }
-                                        });
-                                    }
                                     return userId;
                                 });
                     } else {
                         String errorMsg = "チャンネル「" + normalizedLogin + "」が見つかりませんでした";
                         StreamTweaks.LOGGER.error(errorMsg);
 
-                        MinecraftClient client = MinecraftClient.getInstance();
-                        if (client != null) {
-                            MutableText msg = ChatMessages.streamTweaks(
-                                    Text.literal(errorMsg).formatted(Formatting.RED));
-
-                            client.execute(() -> {
-                                if (client.player != null) {
-                                    client.player.sendMessage(msg, false);
-                                }
-                            });
-                        }
+                        ChatMessageUtil.sendMessage(() -> MessageTexts.channelNotFound(normalizedLogin));
 
                         return CompletableFuture.failedFuture(new RuntimeException(errorMsg));
                     }
@@ -313,17 +237,7 @@ public final class TwitchService {
                     String errorMsg = "チャット購読に失敗しました: " + throwable.getMessage();
                     StreamTweaks.LOGGER.error(errorMsg, throwable);
 
-                    MinecraftClient client = MinecraftClient.getInstance();
-                    if (client != null) {
-                        MutableText msg = ChatMessages.streamTweaks(
-                                Text.literal(errorMsg).formatted(Formatting.RED));
-
-                        client.execute(() -> {
-                            if (client.player != null) {
-                                client.player.sendMessage(msg, false);
-                            }
-                        });
-                    }
+                    ChatMessageUtil.sendMessage(() -> MessageTexts.channelConnectionFailed());
 
                     throw new RuntimeException(errorMsg, throwable);
                 });
@@ -339,19 +253,12 @@ public final class TwitchService {
             StreamTweaks.LOGGER.info("No active Twitch channel connection to disconnect.");
 
             if (!silent) {
-                MinecraftClient client = MinecraftClient.getInstance();
-                if (client != null) {
-                    MutableText msg = ChatMessages.streamTweaks(
-                            Text.literal("切断できるチャンネルがありません。").formatted(Formatting.YELLOW));
-                    client.execute(() -> {
-                        if (client.player != null) {
-                            client.player.sendMessage(msg, false);
-                        }
-                    });
-                }
+                ChatMessageUtil.sendMessage(() -> MessageTexts.alreadyDisconnected());
             }
             return;
         }
+
+        ChatMessageUtil.sendMessage(() -> MessageTexts.disconnecting());
 
         subscriptionManager.removeDesired(previousState.chatSubscription());
         ChatMessageLog.getInstance().clearSource(Source.TWITCH);
@@ -359,20 +266,7 @@ public final class TwitchService {
         StreamTweaks.LOGGER.info("Disconnected from Twitch channel: {}", channelName);
 
         if (!silent) {
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client != null) {
-                MutableText msg = ChatMessages.streamTweaks(
-                        Text.literal("チャンネル「").formatted(Formatting.YELLOW))
-                        .append(Text.literal(channelName).formatted(Formatting.AQUA))
-                        .append(Text.literal("」から切断しました。")
-                                .formatted(Formatting.YELLOW));
-
-                client.execute(() -> {
-                    if (client.player != null) {
-                        client.player.sendMessage(msg, false);
-                    }
-                });
-            }
+            ChatMessageUtil.sendMessage(() -> MessageTexts.disconnected(channelName));
         }
     }
 
