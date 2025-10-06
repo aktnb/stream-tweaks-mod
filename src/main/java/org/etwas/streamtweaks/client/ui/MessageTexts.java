@@ -28,82 +28,65 @@ public final class MessageTexts {
         return base;
     }
 
-    private static MutableText infoText(String message) {
-        return Text.literal(message).formatted(INFO_COLOR);
-    }
-
     private static MutableText primaryText(String message) {
         return Text.literal(message).formatted(PRIMARY_COLOR);
     }
 
-    private static MutableText warningText(String message) {
-        return Text.literal(message).formatted(WARNING_COLOR);
-    }
-
-    private static MutableText errorText(String message) {
-        return Text.literal(message).formatted(ERROR_COLOR);
-    }
-
-    private static MutableText textWithLink(String text, URI link, String hoverText) {
-        return primaryText(text)
-                .styled(style -> style
-                        .withUnderline(true)
-                        .withClickEvent(new ClickEvent.OpenUrl(link))
-                        .withHoverEvent(new HoverEvent.ShowText(Text.literal(hoverText))));
-    }
-
-    public static MutableText disconnecting() {
-        return streamTweaks(warningText("切断中..."));
-    }
-
     public static MutableText promptAuthentication(URI authUri) {
-        return streamTweaks(
-                warningText("認証が必要です．"))
-                .append(MessageTexts.textWithLink("ここ", authUri, "クリックしてブラウザで開く"))
-                .append(warningText("をクリックして，ブラウザで認証を行ってください．"));
+        return streamTweaks().append(Text.translatable("message.stream-tweaks.promptAuthentication",
+                Text.translatable("message.streamTweaks.here")
+                        .styled(style -> style
+                                .withColor(PRIMARY_COLOR)
+                                .withUnderline(true)
+                                .withClickEvent(new ClickEvent.OpenUrl(authUri))
+                                .withHoverEvent(new HoverEvent.ShowText(
+                                        Text.translatable("message.stream-tweaks.authenticationLinkHover")
+                                                .formatted(Formatting.GRAY)))))
+                .formatted(WARNING_COLOR));
     }
 
     public static MutableText authenticated() {
-        return streamTweaks(infoText("認証に成功しました！"));
+        return streamTweaks(Text.translatable("message.stream-tweaks.authenticationSuccess")
+                .formatted(INFO_COLOR));
     }
 
     public static MutableText channelConnecting(String channelName) {
-        return streamTweaks(
-                warningText("チャンネル「"))
-                .append(primaryText(channelName))
-                .append(warningText("」に接続中..."));
+        return streamTweaks().append(Text.translatable("message.stream-tweaks.connecting", primaryText(channelName))
+                .formatted(WARNING_COLOR));
     }
 
     public static MutableText channelConnecting() {
-        return streamTweaks(
-                warningText("認証済みユーザーのチャンネルに接続中..."));
+        return streamTweaks().append(Text.translatable("message.stream-tweaks.connectingSelf")
+                .formatted(WARNING_COLOR));
     }
 
     public static MutableText channelConnected(String channelName) {
-        return streamTweaks(
-                infoText("チャンネル「")
-                        .append(primaryText(channelName))
-                        .append(infoText("」に接続しました。")));
+        return streamTweaks().append(Text.translatable("message.stream-tweaks.connected", primaryText(channelName))
+                .formatted(INFO_COLOR));
     }
 
     public static MutableText channelConnectionFailed() {
-        return streamTweaks(errorText("チャンネルへの接続に失敗しました。"));
+        return streamTweaks().append(Text.translatable("message.stream-tweaks.connectionFailed")
+                .formatted(ERROR_COLOR));
     }
 
     public static MutableText channelNotFound(String channelName) {
-        return streamTweaks(
-                errorText("チャンネル「" + channelName + "が見つかりません。"));
+        return streamTweaks().append(Text.translatable("message.stream-tweaks.channelNotFound", channelName)
+                .formatted(ERROR_COLOR));
+    }
+
+    public static MutableText disconnecting() {
+        return streamTweaks(Text.translatable("message.stream-tweaks.disconnecting")
+                .formatted(WARNING_COLOR));
     }
 
     public static MutableText disconnected(String channelName) {
-        return streamTweaks(
-                warningText("チャンネル「"))
-                .append(primaryText(channelName))
-                .append(warningText("」から切断しました。"));
+        return streamTweaks().append(Text.translatable("message.stream-tweaks.disconnected", primaryText(channelName))
+                .formatted(WARNING_COLOR));
     }
 
     public static MutableText alreadyDisconnected() {
-        return streamTweaks(
-                warningText("既に切断されています。"));
+        return streamTweaks().append(Text.translatable("message.stream-tweaks.alreadyDisconnected")
+                .formatted(ERROR_COLOR));
     }
 }
