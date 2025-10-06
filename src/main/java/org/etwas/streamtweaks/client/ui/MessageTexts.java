@@ -34,7 +34,7 @@ public final class MessageTexts {
 
     public static MutableText promptAuthentication(URI authUri) {
         return streamTweaks().append(Text.translatable("message.stream-tweaks.promptAuthentication",
-                Text.translatable("message.streamTweaks.here")
+                Text.translatable("message.stream-tweaks.here")
                         .styled(style -> style
                                 .withColor(PRIMARY_COLOR)
                                 .withUnderline(true)
