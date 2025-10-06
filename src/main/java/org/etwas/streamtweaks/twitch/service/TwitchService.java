@@ -126,23 +126,7 @@ public final class TwitchService {
     public CompletableFuture<String> connectToChannel(String channelLogin) {
         return ensureAuthenticated()
                 .thenCompose(ignored -> resolveTargetLogin(channelLogin))
-                .thenCompose(this::connectResolvedLogin)
-                .exceptionally(throwable -> {
-                    Throwable cause = throwable instanceof CompletionException && throwable.getCause() != null
-                            ? throwable.getCause()
-                            : throwable;
-                    String detail = cause.getMessage();
-                    if (detail == null || detail.isBlank()) {
-                        detail = cause.getClass().getSimpleName();
-                    }
-                    String errorMsg = "チャンネル接続に失敗しました: " + detail;
-                    StreamTweaks.LOGGER.error(errorMsg, cause);
-
-                    ChatMessages.sendMessage(() -> ChatMessages.streamTweaks(
-                            Text.literal(errorMsg).formatted(Formatting.RED)));
-
-                    throw new RuntimeException(errorMsg, cause);
-                });
+                .thenCompose(this::connectResolvedLogin);
     }
 
     private CompletableFuture<String> connectResolvedLogin(String resolvedLogin) {

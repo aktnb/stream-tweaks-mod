@@ -1,5 +1,8 @@
 package org.etwas.streamtweaks.client.commands;
 
+import java.util.concurrent.CompletionException;
+
+import org.etwas.streamtweaks.StreamTweaks;
 import org.etwas.streamtweaks.client.ui.MessageTexts;
 import org.etwas.streamtweaks.twitch.service.TwitchService;
 import org.etwas.streamtweaks.utils.ChatMessages;
@@ -11,6 +14,7 @@ import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 public final class TwitchCommand {
     public static void register(CommandDispatcher<FabricClientCommandSource> dispatcher) {
@@ -44,7 +48,24 @@ public final class TwitchCommand {
             return message.copy();
         });
 
-        TwitchService.getInstance().connectToChannel(login);
+        TwitchService.getInstance()
+                .connectToChannel(login)
+                .exceptionally(throwable -> {
+                    Throwable cause = throwable instanceof CompletionException && throwable.getCause() != null
+                            ? throwable.getCause()
+                            : throwable;
+                    String detail = cause.getMessage();
+                    if (detail == null || detail.isBlank()) {
+                        detail = cause.getClass().getSimpleName();
+                    }
+                    String errorMsg = "チャンネル接続に失敗しました: " + detail;
+                    StreamTweaks.LOGGER.error(errorMsg, cause);
+
+                    ChatMessages.sendMessage(() -> ChatMessages.streamTweaks(
+                            Text.literal(errorMsg).formatted(Formatting.RED)));
+
+                    throw new RuntimeException(errorMsg, cause);
+                });
 
         return 1;
     }
