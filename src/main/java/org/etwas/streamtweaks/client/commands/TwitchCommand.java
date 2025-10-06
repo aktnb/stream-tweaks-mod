@@ -5,7 +5,7 @@ import java.util.concurrent.CompletionException;
 import org.etwas.streamtweaks.StreamTweaks;
 import org.etwas.streamtweaks.client.ui.MessageTexts;
 import org.etwas.streamtweaks.twitch.service.TwitchService;
-import org.etwas.streamtweaks.utils.ChatMessages;
+import org.etwas.streamtweaks.utils.ChatMessageUtil;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -14,7 +14,6 @@ import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
 
 public final class TwitchCommand {
     public static void register(CommandDispatcher<FabricClientCommandSource> dispatcher) {
@@ -38,12 +37,12 @@ public final class TwitchCommand {
     }
 
     private static int connect(CommandContext<FabricClientCommandSource> context, String login) {
-        ChatMessages.sendMessage(() -> {
+        ChatMessageUtil.sendMessage(() -> {
             Text message;
             if (login == null || login.isBlank()) {
-                message = ChatMessages.streamTweaks("認証済みユーザーのチャンネルへの接続を試みます。");
+                message = MessageTexts.channelConnecting();
             } else {
-                message = ChatMessages.streamTweaks("チャンネル「" + login + "」への接続を試みます。");
+                message = MessageTexts.channelConnecting(login);
             }
             return message.copy();
         });
@@ -61,8 +60,7 @@ public final class TwitchCommand {
                     String errorMsg = "チャンネル接続に失敗しました: " + detail;
                     StreamTweaks.LOGGER.error(errorMsg, cause);
 
-                    ChatMessages.sendMessage(() -> ChatMessages.streamTweaks(
-                            Text.literal(errorMsg).formatted(Formatting.RED)));
+                    ChatMessageUtil.sendMessage(() -> MessageTexts.channelConnectionFailed());
 
                     throw new RuntimeException(errorMsg, cause);
                 });
@@ -71,8 +69,6 @@ public final class TwitchCommand {
     }
 
     private static int disconnect(CommandContext<FabricClientCommandSource> context) {
-        ChatMessages.sendMessage(() -> MessageTexts.disconnecting());
-
         TwitchService.getInstance().disconnect();
 
         return 1;
