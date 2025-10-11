@@ -9,6 +9,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.etwas.streamtweaks.StreamTweaks;
 import org.etwas.streamtweaks.client.chat.ChatMessage;
+import org.etwas.streamtweaks.client.chat.ChatMessage.Fragment;
 import org.etwas.streamtweaks.client.chat.ChatMessage.Source;
 import org.etwas.streamtweaks.client.chat.ChatMessageLog;
 import org.etwas.streamtweaks.client.ui.MessageTexts;
@@ -21,6 +22,8 @@ import org.etwas.streamtweaks.twitch.eventsub.EventSubManager.EventNotification;
 import org.etwas.streamtweaks.twitch.eventsub.SubscriptionSpec;
 import org.etwas.streamtweaks.utils.ChatMessageUtil;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -321,6 +324,39 @@ public final class TwitchService {
         String messageId = optString(event, "message_id");
         String chatterUserId = optString(event, "chatter_user_id");
         String chatterLogin = optString(event, "chatter_user_login");
+        JsonArray fragments = messageObj != null && messageObj.has("fragments")
+                && messageObj.get("fragments").isJsonArray()
+                        ? messageObj.getAsJsonArray("fragments")
+                        : null;
+        var fragmentsList = new java.util.ArrayList<Fragment>();
+        for (JsonElement fragment : fragments) {
+            fragmentsList.add(switch (fragment.getAsJsonObject().get("type").getAsString()) {
+                case "text" -> new ChatMessage.TextFragment(optString(fragment.getAsJsonObject(), "text"));
+                case "emote" -> new ChatMessage.EmoteFragment(
+                        optString(fragment.getAsJsonObject(), "id"),
+                        optString(fragment.getAsJsonObject(), "emote_set_id"));
+                case "mention" -> new ChatMessage.MentionFragment(
+                        optString(fragment.getAsJsonObject(), "name"),
+                        fragment.getAsJsonObject().has("start_index")
+                                ? fragment.getAsJsonObject().get("start_index").getAsInt()
+                                : -1,
+                        fragment.getAsJsonObject().has("end_index")
+                                ? fragment.getAsJsonObject().get("end_index").getAsInt()
+                                : -1);
+                case "cheermote" -> new ChatMessage.CheermoteFragment(
+                        optString(fragment.getAsJsonObject(), "prefix"),
+                        fragment.getAsJsonObject().has("amount")
+                                ? fragment.getAsJsonObject().get("amount").getAsInt()
+                                : -1,
+                        fragment.getAsJsonObject().has("start_index")
+                                ? fragment.getAsJsonObject().get("start_index").getAsInt()
+                                : -1,
+                        fragment.getAsJsonObject().has("end_index")
+                                ? fragment.getAsJsonObject().get("end_index").getAsInt()
+                                : -1);
+                default -> new ChatMessage.TextFragment(optString(fragment.getAsJsonObject(), "text"));
+            });
+        }
 
         ChatMessage chatMessage = new ChatMessage(
                 messageId,
@@ -328,6 +364,7 @@ public final class TwitchService {
                 chatterLogin,
                 displayName,
                 text,
+                new Fragment[] {},
                 isAction,
                 twitchColor,
                 Instant.now(),
