@@ -296,9 +296,10 @@ public final class TwitchService {
             return;
         }
 
-        JsonObject messageObj = event.has("message") && event.get("message").isJsonObject()
-                ? event.getAsJsonObject("message")
-                : null;
+        JsonObject messageObj = event.getAsJsonObject("message");
+        if (messageObj == null) {
+            return;
+        }
 
         String text = optString(messageObj, "text");
         if (text == null) {
@@ -312,7 +313,7 @@ public final class TwitchService {
         StreamTweaks.devLogger("Twitch chat message from %s: %s".formatted(displayName, text));
 
         boolean isAction = "action".equalsIgnoreCase(optString(event, "message_type"));
-        if (!isAction && messageObj != null && messageObj.has("is_action")) {
+        if (!isAction && messageObj.has("is_action")) {
             try {
                 isAction = messageObj.get("is_action").getAsBoolean();
             } catch (ClassCastException | IllegalStateException ignored) {
@@ -324,38 +325,38 @@ public final class TwitchService {
         String messageId = optString(event, "message_id");
         String chatterUserId = optString(event, "chatter_user_id");
         String chatterLogin = optString(event, "chatter_user_login");
-        JsonArray fragments = messageObj != null && messageObj.has("fragments")
-                && messageObj.get("fragments").isJsonArray()
-                        ? messageObj.getAsJsonArray("fragments")
-                        : null;
+        JsonArray fragments = messageObj.getAsJsonArray("fragments");
         var fragmentsList = new java.util.ArrayList<Fragment>();
-        for (JsonElement fragment : fragments) {
-            fragmentsList.add(switch (fragment.getAsJsonObject().get("type").getAsString()) {
-                case "text" -> new ChatMessage.TextFragment(optString(fragment.getAsJsonObject(), "text"));
-                case "emote" -> new ChatMessage.EmoteFragment(
-                        optString(fragment.getAsJsonObject(), "id"),
-                        optString(fragment.getAsJsonObject(), "emote_set_id"));
-                case "mention" -> new ChatMessage.MentionFragment(
-                        optString(fragment.getAsJsonObject(), "name"),
-                        fragment.getAsJsonObject().has("start_index")
-                                ? fragment.getAsJsonObject().get("start_index").getAsInt()
-                                : -1,
-                        fragment.getAsJsonObject().has("end_index")
-                                ? fragment.getAsJsonObject().get("end_index").getAsInt()
-                                : -1);
-                case "cheermote" -> new ChatMessage.CheermoteFragment(
-                        optString(fragment.getAsJsonObject(), "prefix"),
-                        fragment.getAsJsonObject().has("amount")
-                                ? fragment.getAsJsonObject().get("amount").getAsInt()
-                                : -1,
-                        fragment.getAsJsonObject().has("start_index")
-                                ? fragment.getAsJsonObject().get("start_index").getAsInt()
-                                : -1,
-                        fragment.getAsJsonObject().has("end_index")
-                                ? fragment.getAsJsonObject().get("end_index").getAsInt()
-                                : -1);
-                default -> new ChatMessage.TextFragment(optString(fragment.getAsJsonObject(), "text"));
-            });
+        if (fragments != null) {
+            for (JsonElement fragment : fragments) {
+                fragmentsList.add(
+                        switch (fragment.getAsJsonObject().get("type").getAsString()) {
+                            case "text" -> new ChatMessage.TextFragment(optString(fragment.getAsJsonObject(), "text"));
+                            case "emote" -> new ChatMessage.EmoteFragment(
+                                    optString(fragment.getAsJsonObject(), "id"),
+                                    optString(fragment.getAsJsonObject(), "emote_set_id"));
+                            case "mention" -> new ChatMessage.MentionFragment(
+                                    optString(fragment.getAsJsonObject(), "name"),
+                                    fragment.getAsJsonObject().has("start_index")
+                                            ? fragment.getAsJsonObject().get("start_index").getAsInt()
+                                            : -1,
+                                    fragment.getAsJsonObject().has("end_index")
+                                            ? fragment.getAsJsonObject().get("end_index").getAsInt()
+                                            : -1);
+                            case "cheermote" -> new ChatMessage.CheermoteFragment(
+                                    optString(fragment.getAsJsonObject(), "prefix"),
+                                    fragment.getAsJsonObject().has("amount")
+                                            ? fragment.getAsJsonObject().get("amount").getAsInt()
+                                            : -1,
+                                    fragment.getAsJsonObject().has("start_index")
+                                            ? fragment.getAsJsonObject().get("start_index").getAsInt()
+                                            : -1,
+                                    fragment.getAsJsonObject().has("end_index")
+                                            ? fragment.getAsJsonObject().get("end_index").getAsInt()
+                                            : -1);
+                            default -> new ChatMessage.TextFragment(optString(fragment.getAsJsonObject(), "text"));
+                        });
+            }
         }
 
         ChatMessage chatMessage = new ChatMessage(
