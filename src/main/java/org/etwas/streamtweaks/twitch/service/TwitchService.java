@@ -117,6 +117,14 @@ public final class TwitchService {
                 .thenCompose(response -> {
                     if (response.isSuccess()) {
                         var result = response.data();
+                        if (result.users() == null || result.users().isEmpty()) {
+                            String errorMsg = "チャンネル「" + normalizedLogin + "」が見つかりませんでした";
+                            StreamTweaks.LOGGER.error(errorMsg);
+
+                            ChatMessageUtil.sendMessage(() -> MessageTexts.channelNotFound(normalizedLogin));
+
+                            return CompletableFuture.failedFuture(new RuntimeException(errorMsg));
+                        }
                         TwitchUser user = result.users().get(0);
                         String userId = user.id();
 
@@ -159,6 +167,11 @@ public final class TwitchService {
                 .thenCompose(response -> {
                     if (response.isSuccess()) {
                         var result = response.data();
+                        if (result.users() == null || result.users().isEmpty()) {
+                            String errorMsg = "認証されたユーザー情報が見つかりませんでした";
+                            StreamTweaks.LOGGER.error(errorMsg);
+                            return CompletableFuture.failedFuture(new RuntimeException(errorMsg));
+                        }
                         TwitchUser currentUser = result.users().get(0);
                         String login = currentUser.login();
                         if (login == null || login.isBlank()) {
@@ -189,6 +202,11 @@ public final class TwitchService {
                 .thenCompose(response -> {
                     if (response.isSuccess()) {
                         var result = response.data();
+                        if (result.users() == null || result.users().isEmpty()) {
+                            String errorMsg = "認証されたユーザー情報が見つかりませんでした";
+                            StreamTweaks.LOGGER.error(errorMsg);
+                            return CompletableFuture.<SubscriptionSpec>failedFuture(new RuntimeException(errorMsg));
+                        }
                         TwitchUser currentUser = result.users().get(0);
                         String authenticatedUserId = currentUser.id();
 
