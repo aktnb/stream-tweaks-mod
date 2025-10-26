@@ -85,6 +85,27 @@ public class TwitchOAuthClient {
         }
     }
 
+    public CompletableFuture<ValidateResult> validateToken(String token) {
+        var request = HttpRequest.newBuilder(URI.create("https://id.twitch.tv/oauth2/validate"))
+                .setHeader("Authorization", "OAuth " + token)
+                .GET().build();
+
+        HttpResponse<String> response;
+        try {
+            response = http.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 200) {
+                var body = response.body();
+                var tokenValidationResponse = GSON.fromJson(body, TokenValidationResponse.class);
+                var result = tokenValidationResponse != null && tokenValidationResponse.client_id.equals(CLIENT_ID)
+                        && hasScopes(tokenValidationResponse, DEFAULT_SCOPES);
+                return CompletableFuture.completedFuture(new ValidateResult(result, tokenValidationResponse.login));
+            }
+        } catch (IOException | InterruptedException e) {
+            LOGGER.error("Failed to validate Twitch token", e);
+        }
+        return CompletableFuture.completedFuture(new ValidateResult(false, null));
+    }
+
     private void handleCallback(Map<String, String> params) {
         synchronized (authorizationLock) {
             var receivedState = params.get("state");
@@ -143,33 +164,12 @@ public class TwitchOAuthClient {
         return true;
     }
 
-    public CompletableFuture<ValidateResult> validateToken(String token) {
-        var request = HttpRequest.newBuilder(URI.create("https://id.twitch.tv/oauth2/validate"))
-                .setHeader("Authorization", "OAuth " + token)
-                .GET().build();
-
-        HttpResponse<String> response;
-        try {
-            response = http.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() == 200) {
-                var body = response.body();
-                var tokenValidationResponse = GSON.fromJson(body, TokenValidationResponse.class);
-                var result = tokenValidationResponse != null && tokenValidationResponse.client_id.equals(CLIENT_ID)
-                        && hasScopes(tokenValidationResponse, DEFAULT_SCOPES);
-                return CompletableFuture.completedFuture(new ValidateResult(result, tokenValidationResponse.login));
-            }
-        } catch (IOException | InterruptedException e) {
-            LOGGER.error("Failed to validate Twitch token", e);
-        }
-        return CompletableFuture.completedFuture(new ValidateResult(false, null));
-    }
-
-    public static class TokenValidationResponse {
-        public String client_id;
-        public String login;
-        public String user_id;
-        public int expires_in;
-        public String[] scopes;
+    public record TokenValidationResponse(
+            String client_id,
+            String login,
+            String user_id,
+            int expires_in,
+            String[] scopes) {
     }
 
     public record ValidateResult(boolean isValid, String login) {
