@@ -43,6 +43,8 @@ public final class HelixClient {
 
     /**
      * Create EventSub Subscription
+     * 
+     * https://dev.twitch.tv/docs/api/reference/#create-eventsub-subscription
      *
      * @param subscription サブスクリプション仕様
      * @param sessionId    WebSocketセッションID
@@ -97,6 +99,8 @@ public final class HelixClient {
     /**
      * Get EventSub Subscriptions
      * 
+     * https://dev.twitch.tv/docs/api/reference/#get-eventsub-subscriptions
+     * 
      * @return CompletableFuture<GetSubscriptionsResponse>
      */
     public CompletableFuture<GetSubscriptionsResponse> getEventSubSubscriptions() {
@@ -133,6 +137,8 @@ public final class HelixClient {
 
     /**
      * Delete EventSub Subscription
+     * 
+     * https://dev.twitch.tv/docs/api/reference/#delete-eventsub-subscription
      * 
      * @param subscriptionId サブスクリプションID
      * @return CompletableFuture<DeleteSubscriptionResponse>
@@ -171,7 +177,9 @@ public final class HelixClient {
     }
 
     /**
-     * Get User by Login
+     * Get User by Login'
+     * 
+     * https://dev.twitch.tv/docs/api/reference/#get-users
      *
      * @param login ユーザーのログイン名
      * @return CompletableFuture<GetUsersResponse>
@@ -211,6 +219,8 @@ public final class HelixClient {
 
     /**
      * Get Users by Login
+     * 
+     * https://dev.twitch.tv/docs/api/reference/#get-users
      *
      * @param logins ユーザーのログイン名配列（最大100個）
      * @return CompletableFuture<GetUsersResponse>
@@ -260,6 +270,8 @@ public final class HelixClient {
 
     /**
      * Get Current User (Authenticated User)
+     * 
+     * https://dev.twitch.tv/docs/api/reference/#get-users
      *
      * @return CompletableFuture<GetUsersResponse>
      */
