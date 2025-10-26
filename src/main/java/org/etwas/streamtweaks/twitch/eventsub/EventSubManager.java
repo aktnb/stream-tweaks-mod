@@ -48,8 +48,8 @@ public final class EventSubManager implements WebSocketClient.Listener, Keepaliv
                     .thenAccept(response -> {
                         if (response != null && response.isSuccess()) {
                             var result = response.data();
-                            if (result != null && !result.data().isEmpty()) {
-                                var subscription = result.data().get(0);
+                            if (result != null && !result.subscriptions().isEmpty()) {
+                                var subscription = result.subscriptions().get(0);
                                 subscriptionIds.put(spec, subscription.id());
                             }
                         }
@@ -104,8 +104,8 @@ public final class EventSubManager implements WebSocketClient.Listener, Keepaliv
                     .thenAccept(response -> {
                         if (response != null && response.isSuccess()) {
                             var result = response.data();
-                            if (result != null && !result.data().isEmpty()) {
-                                var subscription = result.data().get(0);
+                            if (result != null && !result.subscriptions().isEmpty()) {
+                                var subscription = result.subscriptions().get(0);
                                 subscriptionIds.put(spec, subscription.id());
                             }
                         }
