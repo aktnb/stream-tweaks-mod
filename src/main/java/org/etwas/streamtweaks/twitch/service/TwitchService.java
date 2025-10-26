@@ -246,7 +246,9 @@ public final class TwitchService {
             return;
         }
 
-        ChatMessageUtil.sendMessage(() -> MessageTexts.disconnecting());
+        if (!silent) {
+            ChatMessageUtil.sendMessage(() -> MessageTexts.disconnecting());
+        }
 
         subscriptionManager.removeDesired(previousState.chatSubscription());
         ChatMessageLog.getInstance().clearSource(Source.TWITCH);
