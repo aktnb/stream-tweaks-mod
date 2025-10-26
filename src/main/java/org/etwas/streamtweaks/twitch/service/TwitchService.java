@@ -68,19 +68,19 @@ public final class TwitchService {
             }
         }).thenCompose(authFuture -> authFuture)
                 .thenAccept(result -> {
-                    if (result == null || result.token == null) {
+                    if (result == null || result.token() == null) {
                         throw new CompletionException(
                                 new IllegalStateException("Twitch access token was not obtained"));
                     }
 
-                    helixClient.setCredentials(result.token, oauthClient.CLIENT_ID);
+                    helixClient.setCredentials(result.token(), oauthClient.CLIENT_ID);
 
-                    if (result.authType == AuthType.NEW_AUTHORIZATION) {
+                    if (result.authType() == AuthType.NEW_AUTHORIZATION) {
                         ChatMessageUtil.sendMessage(() -> MessageTexts.authenticated());
                     }
 
                     StreamTweaks.devLogger(
-                            "Got Twitch access token: %s (type: %s)".formatted(result.token, result.authType));
+                            "Got Twitch access token: %s (type: %s)".formatted(result.token(), result.authType()));
                 })
                 .whenComplete((ignored, throwable) -> {
                     if (throwable != null) {
