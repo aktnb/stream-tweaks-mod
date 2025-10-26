@@ -9,6 +9,7 @@ import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -30,6 +31,15 @@ public class TwitchOAuthClient {
     private CompletableFuture<AuthResult> currentTokenFuture = null;
     private final Object authorizationLock = new Object();
 
+    public CompletableFuture<Boolean> hasValidToken() {
+        var credentials = store.loadOrCreate();
+        if (credentials.accessToken() == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+        return validateToken(credentials.accessToken())
+                .thenApply(validation -> validation.isValid);
+    }
+
     public CompletableFuture<AuthResult> getAccessToken(Consumer<String> onRequiresUserInteraction) {
         var credentials = store.loadOrCreate();
         if (credentials.accessToken() != null) {
@@ -47,9 +57,9 @@ public class TwitchOAuthClient {
         var scope = String.join("+", DEFAULT_SCOPES);
         var url = "https://id.twitch.tv/oauth2/authorize" +
                 "?client_id=" + CLIENT_ID +
-                "&redirect_uri=" + urlEncode("http://localhost:7654/callback") +
+                "&redirect_uri=" + URLEncoder.encode("http://localhost:7654/callback", StandardCharsets.UTF_8) +
                 "&response_type=token" +
-                "&scope=" + urlEncode(scope) +
+                "&scope=" + URLEncoder.encode(scope, java.nio.charset.StandardCharsets.UTF_8) +
                 "&state=" + state;
 
         synchronized (authorizationLock) {
@@ -73,10 +83,6 @@ public class TwitchOAuthClient {
             onRequiresUserInteraction.accept(url);
             return currentTokenFuture;
         }
-    }
-
-    private static String urlEncode(String s) {
-        return URLEncoder.encode(s, java.nio.charset.StandardCharsets.UTF_8);
     }
 
     private void handleCallback(Map<String, String> params) {
