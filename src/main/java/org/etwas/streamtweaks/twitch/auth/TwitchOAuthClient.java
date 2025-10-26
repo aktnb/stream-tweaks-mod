@@ -21,28 +21,30 @@ public class TwitchOAuthClient {
     private final HttpClient http = HttpClient.newHttpClient();
     public final TwitchCredentialStore store = new TwitchCredentialStore();
     public final String CLIENT_ID = "p5xrtcp49if1zj6b86y356htualkth";
+    public final String[] DEFAULT_SCOPES = new String[] {
+            "user:read:chat"
+    };
 
     private LocalHttpCallbackServer currentServer = null;
     private String currentState = null;
-    private String[] currentScopes = null;
     private CompletableFuture<AuthResult> currentTokenFuture = null;
     private final Object authorizationLock = new Object();
 
-    public CompletableFuture<AuthResult> getAccessToken(String[] scopes, Consumer<String> onRequiresUserInteraction) {
+    public CompletableFuture<AuthResult> getAccessToken(Consumer<String> onRequiresUserInteraction) {
         var credentials = store.loadOrCreate();
         if (credentials.accessToken() != null) {
-            var validation = validateToken(credentials.accessToken(), scopes).join();
+            var validation = validateToken(credentials.accessToken()).join();
             if (validation.isValid) {
                 return CompletableFuture
                         .completedFuture(new AuthResult(credentials.accessToken(), AuthResult.AuthType.CACHED_TOKEN));
             }
         }
-        return authorize(scopes, onRequiresUserInteraction);
+        return authorize(onRequiresUserInteraction);
     }
 
-    public CompletableFuture<AuthResult> authorize(String[] scopes, Consumer<String> onRequiresUserInteraction) {
+    public CompletableFuture<AuthResult> authorize(Consumer<String> onRequiresUserInteraction) {
         var state = Long.toHexString(Double.doubleToLongBits(Math.random()));
-        var scope = String.join("+", scopes);
+        var scope = String.join("+", DEFAULT_SCOPES);
         var url = "https://id.twitch.tv/oauth2/authorize" +
                 "?client_id=" + CLIENT_ID +
                 "&redirect_uri=" + urlEncode("http://localhost:7654/callback") +
@@ -56,7 +58,6 @@ public class TwitchOAuthClient {
             }
 
             currentState = state;
-            currentScopes = scopes;
             currentTokenFuture = new CompletableFuture<>();
 
             if (currentServer == null) {
@@ -87,7 +88,7 @@ public class TwitchOAuthClient {
 
                 if (params.containsKey("access_token")) {
                     var accessToken = params.get("access_token");
-                    var validation = validateToken(accessToken, currentScopes).join();
+                    var validation = validateToken(accessToken).join();
                     if (!validation.isValid) {
                         currentTokenFuture.complete(null);
                         cleanupServer();
@@ -136,7 +137,7 @@ public class TwitchOAuthClient {
         return true;
     }
 
-    public CompletableFuture<ValidateResult> validateToken(String token, String[] scopes) {
+    public CompletableFuture<ValidateResult> validateToken(String token) {
         var request = HttpRequest.newBuilder(URI.create("https://id.twitch.tv/oauth2/validate"))
                 .setHeader("Authorization", "OAuth " + token)
                 .GET().build();
@@ -148,7 +149,7 @@ public class TwitchOAuthClient {
                 var body = response.body();
                 var tokenValidationResponse = GSON.fromJson(body, TokenValidationResponse.class);
                 var result = tokenValidationResponse != null && tokenValidationResponse.client_id.equals(CLIENT_ID)
-                        && hasScopes(tokenValidationResponse, scopes);
+                        && hasScopes(tokenValidationResponse, DEFAULT_SCOPES);
                 return CompletableFuture.completedFuture(new ValidateResult(result, tokenValidationResponse.login));
             }
         } catch (IOException | InterruptedException e) {

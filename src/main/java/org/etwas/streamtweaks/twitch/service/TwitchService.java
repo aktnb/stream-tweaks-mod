@@ -60,7 +60,7 @@ public final class TwitchService {
     public CompletableFuture<Void> ensureAuthenticated() {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                return oauthClient.getAccessToken(new String[] { "user:read:chat" }, url -> {
+                return oauthClient.getAccessToken(url -> {
                     ChatMessageUtil.sendMessage(() -> MessageTexts.promptAuthentication(URI.create(url)));
                 });
             } catch (Exception e) {
@@ -95,7 +95,7 @@ public final class TwitchService {
             if (credentials.accessToken() == null) {
                 return false;
             }
-            var validation = oauthClient.validateToken(credentials.accessToken(), new String[] {}).join();
+            var validation = oauthClient.validateToken(credentials.accessToken()).join();
             return validation.isValid();
         } catch (Exception e) {
             StreamTweaks.LOGGER.debug("Error checking authentication status", e);
