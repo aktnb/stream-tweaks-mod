@@ -14,7 +14,7 @@ import org.etwas.streamtweaks.client.chat.ChatMessage.Source;
 import org.etwas.streamtweaks.client.chat.ChatMessageLog;
 import org.etwas.streamtweaks.client.ui.MessageTexts;
 import org.etwas.streamtweaks.twitch.api.HelixClient;
-import org.etwas.streamtweaks.twitch.api.HelixClient.TwitchUser;
+import org.etwas.streamtweaks.twitch.api.TwitchUser;
 import org.etwas.streamtweaks.twitch.auth.AuthResult.AuthType;
 import org.etwas.streamtweaks.twitch.auth.TwitchOAuthClient;
 import org.etwas.streamtweaks.twitch.eventsub.EventSubManager;
@@ -133,8 +133,9 @@ public final class TwitchService {
 
         return helixClient.getUserByLogin(normalizedLogin)
                 .thenCompose(response -> {
-                    if (response.isSuccess() && !response.users().isEmpty()) {
-                        TwitchUser user = response.users().get(0);
+                    if (response.isSuccess()) {
+                        var result = response.data();
+                        TwitchUser user = result.users().get(0);
                         String userId = user.id();
 
                         StreamTweaks.LOGGER.info("Successfully found user: {} (ID: {})", user.displayName(), userId);
@@ -174,8 +175,9 @@ public final class TwitchService {
 
         return helixClient.getCurrentUser()
                 .thenCompose(response -> {
-                    if (response.isSuccess() && response.users() != null && !response.users().isEmpty()) {
-                        TwitchUser currentUser = response.users().get(0);
+                    if (response.isSuccess()) {
+                        var result = response.data();
+                        TwitchUser currentUser = result.users().get(0);
                         String login = currentUser.login();
                         if (login == null || login.isBlank()) {
                             return CompletableFuture.failedFuture(
@@ -203,8 +205,9 @@ public final class TwitchService {
 
         return helixClient.getCurrentUser()
                 .thenCompose(response -> {
-                    if (response.isSuccess() && !response.users().isEmpty()) {
-                        TwitchUser currentUser = response.users().get(0);
+                    if (response.isSuccess()) {
+                        var result = response.data();
+                        TwitchUser currentUser = result.users().get(0);
                         String authenticatedUserId = currentUser.id();
 
                         StreamTweaks.devLogger("Authenticated user ID: %s (%s)"

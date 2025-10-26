@@ -46,8 +46,12 @@ public final class EventSubManager implements WebSocketClient.Listener, Keepaliv
         if (sessionId != null) {
             helix.createEventSubSubscription(spec, sessionId)
                     .thenAccept(response -> {
-                        if (response != null && response.isSuccess() && response.subscriptionId() != null) {
-                            subscriptionIds.put(spec, response.subscriptionId());
+                        if (response != null && response.isSuccess()) {
+                            var result = response.data();
+                            if (result != null && !result.data().isEmpty()) {
+                                var subscription = result.data().get(0);
+                                subscriptionIds.put(spec, subscription.id());
+                            }
                         }
                     });
         }
@@ -98,8 +102,12 @@ public final class EventSubManager implements WebSocketClient.Listener, Keepaliv
         for (SubscriptionSpec spec : desired) {
             helix.createEventSubSubscription(spec, sessionId)
                     .thenAccept(response -> {
-                        if (response != null && response.isSuccess() && response.subscriptionId() != null) {
-                            subscriptionIds.put(spec, response.subscriptionId());
+                        if (response != null && response.isSuccess()) {
+                            var result = response.data();
+                            if (result != null && !result.data().isEmpty()) {
+                                var subscription = result.data().get(0);
+                                subscriptionIds.put(spec, subscription.id());
+                            }
                         }
                     });
         }
