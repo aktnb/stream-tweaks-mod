@@ -24,16 +24,17 @@ public class TwitchOAuthClient {
 
     private LocalHttpCallbackServer currentServer = null;
     private String currentState = null;
+    private String[] currentScopes = null;
     private CompletableFuture<AuthResult> currentTokenFuture = null;
     private final Object authorizationLock = new Object();
 
     public CompletableFuture<AuthResult> getAccessToken(String[] scopes, Consumer<String> onRequiresUserInteraction) {
         var credentials = store.loadOrCreate();
-        if (credentials.accessToken != null) {
-            var validation = validateToken(credentials.accessToken);
-            if (validation != null && validation.client_id.equals(CLIENT_ID) && hasScopes(validation, scopes)) {
+        if (credentials.accessToken() != null) {
+            var validation = validateToken(credentials.accessToken(), scopes).join();
+            if (validation.isValid) {
                 return CompletableFuture
-                        .completedFuture(new AuthResult(credentials.accessToken, AuthResult.AuthType.CACHED_TOKEN));
+                        .completedFuture(new AuthResult(credentials.accessToken(), AuthResult.AuthType.CACHED_TOKEN));
             }
         }
         return authorize(scopes, onRequiresUserInteraction);
@@ -55,6 +56,7 @@ public class TwitchOAuthClient {
             }
 
             currentState = state;
+            currentScopes = scopes;
             currentTokenFuture = new CompletableFuture<>();
 
             if (currentServer == null) {
@@ -85,18 +87,15 @@ public class TwitchOAuthClient {
 
                 if (params.containsKey("access_token")) {
                     var accessToken = params.get("access_token");
-                    var validation = validateToken(accessToken);
-                    if (validation == null || !validation.client_id.equals(CLIENT_ID)) {
+                    var validation = validateToken(accessToken, currentScopes).join();
+                    if (!validation.isValid) {
                         currentTokenFuture.complete(null);
                         cleanupServer();
                         return;
                     }
 
                     devLogger("Obtained new access token for user: %s".formatted(validation.login));
-                    var credentials = store.loadOrCreate();
-                    credentials.accessToken = accessToken;
-                    credentials.login = validation.login;
-                    store.save(credentials);
+                    store.save(new TwitchCredentials(accessToken, validation.login));
                     currentTokenFuture.complete(new AuthResult(accessToken, AuthResult.AuthType.NEW_AUTHORIZATION));
                     cleanupServer();
                 } else if (params.containsKey("error")) {
@@ -137,19 +136,25 @@ public class TwitchOAuthClient {
         return true;
     }
 
-    public TokenValidationResponse validateToken(String token) {
+    public CompletableFuture<ValidateResult> validateToken(String token, String[] scopes) {
         var request = HttpRequest.newBuilder(URI.create("https://id.twitch.tv/oauth2/validate"))
                 .setHeader("Authorization", "OAuth " + token)
                 .GET().build();
+
+        HttpResponse<String> response;
         try {
-            var response = http.send(request, HttpResponse.BodyHandlers.ofString());
+            response = http.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 200) {
                 var body = response.body();
-                return GSON.fromJson(body, TokenValidationResponse.class);
+                var tokenValidationResponse = GSON.fromJson(body, TokenValidationResponse.class);
+                var result = tokenValidationResponse != null && tokenValidationResponse.client_id.equals(CLIENT_ID)
+                        && hasScopes(tokenValidationResponse, scopes);
+                return CompletableFuture.completedFuture(new ValidateResult(result, tokenValidationResponse.login));
             }
-        } catch (IOException | InterruptedException ignored) {
+        } catch (IOException | InterruptedException e) {
+            LOGGER.error("Failed to validate Twitch token", e);
         }
-        return null;
+        return CompletableFuture.completedFuture(new ValidateResult(false, null));
     }
 
     public static class TokenValidationResponse {
@@ -160,4 +165,6 @@ public class TwitchOAuthClient {
         public String[] scopes;
     }
 
+    public record ValidateResult(boolean isValid, String login) {
+    }
 }

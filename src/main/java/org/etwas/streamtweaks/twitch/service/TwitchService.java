@@ -92,11 +92,11 @@ public final class TwitchService {
     public boolean isAuthenticated() {
         try {
             var credentials = oauthClient.store.loadOrCreate();
-            if (credentials.accessToken == null) {
+            if (credentials.accessToken() == null) {
                 return false;
             }
-            var validation = oauthClient.validateToken(credentials.accessToken);
-            return validation != null && validation.client_id.equals(oauthClient.CLIENT_ID);
+            var validation = oauthClient.validateToken(credentials.accessToken(), new String[] {}).join();
+            return validation.isValid();
         } catch (Exception e) {
             StreamTweaks.LOGGER.debug("Error checking authentication status", e);
             return false;

@@ -24,13 +24,12 @@ public class TwitchCredentialStore {
     public TwitchCredentials loadOrCreate() {
         try {
             Files.createDirectories(file.getParent());
-            if (!Files.exists(file)) {
-                return new TwitchCredentials();
+            if (Files.exists(file)) {
+                return GSON.fromJson(Files.readString(file), TwitchCredentials.class);
             }
-            return GSON.fromJson(Files.readString(file), TwitchCredentials.class);
-        } catch (IOException e) {
-            return new TwitchCredentials();
+        } catch (IOException ignored) {
         }
+        return new TwitchCredentials(null, null);
     }
 
     public void save(TwitchCredentials credentials) {
