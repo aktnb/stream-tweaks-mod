@@ -61,7 +61,7 @@ public final class TwitchService {
         return oauthClient.getAccessToken(url -> {
             ChatMessageUtil.sendMessage(() -> MessageTexts.promptAuthentication(URI.create(url)));
         }).thenAccept(result -> {
-            if (result == null || result.token() == null) {
+            if (result == null || result.authType() == AuthType.NONE || result.token() == null) {
                 throw new CompletionException(
                         new IllegalStateException("Twitch access token was not obtained"));
             }

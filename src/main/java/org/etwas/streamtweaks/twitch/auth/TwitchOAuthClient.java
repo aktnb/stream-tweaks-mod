@@ -14,6 +14,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
+import org.etwas.streamtweaks.twitch.auth.AuthResult.AuthType;
+
 import static org.etwas.streamtweaks.StreamTweaks.LOGGER;
 import static org.etwas.streamtweaks.StreamTweaks.devLogger;
 
@@ -21,14 +23,15 @@ public class TwitchOAuthClient {
     private final Gson GSON = new GsonBuilder().create();
     private final HttpClient http = HttpClient.newHttpClient();
     public final TwitchCredentialStore store;
+
     public final String CLIENT_ID = "p5xrtcp49if1zj6b86y356htualkth";
     public final String[] DEFAULT_SCOPES = new String[] {
             "user:read:chat"
     };
+    private String currentState;
+    private LocalHttpCallbackServer currentServer;
+    private CompletableFuture<AuthResult> currentTokenFuture;
 
-    private LocalHttpCallbackServer currentServer = null;
-    private String currentState = null;
-    private CompletableFuture<AuthResult> currentTokenFuture = null;
     private final Object authorizationLock = new Object();
 
     public TwitchOAuthClient() {
@@ -72,7 +75,7 @@ public class TwitchOAuthClient {
 
         synchronized (authorizationLock) {
             if (currentTokenFuture != null && !currentTokenFuture.isDone()) {
-                currentTokenFuture.complete(null);
+                currentTokenFuture.complete(new AuthResult(null, AuthResult.AuthType.NONE));
             }
 
             currentState = state;
@@ -83,7 +86,7 @@ public class TwitchOAuthClient {
                     currentServer = new LocalHttpCallbackServer(7654, "/callback", this::handleCallback);
                     currentServer.start();
                 } catch (Exception e) {
-                    currentTokenFuture.complete(null);
+                    currentTokenFuture.complete(new AuthResult(null, AuthResult.AuthType.NONE));
                     return currentTokenFuture;
                 }
             }
@@ -116,33 +119,33 @@ public class TwitchOAuthClient {
 
     private void handleCallback(Map<String, String> params) {
         synchronized (authorizationLock) {
-            var receivedState = params.get("state");
+            AuthResult result = new AuthResult(null, AuthType.NONE);
+            try {
+                var receivedState = params.get("state");
+                var accessToken = params.get("access_token");
 
-            if (currentState != null && currentState.equals(receivedState) &&
-                    currentTokenFuture != null && !currentTokenFuture.isDone()) {
+                if (currentTokenFuture == null || currentTokenFuture.isDone()) {
+                    return;
+                }
 
-                if (params.containsKey("access_token")) {
-                    var accessToken = params.get("access_token");
+                if (currentState == null || receivedState == null || !currentState.equals(receivedState)) {
+                    return;
+                }
+
+                if (accessToken != null) {
                     var validation = validateToken(accessToken).join();
-                    if (!validation.isValid) {
-                        currentTokenFuture.complete(null);
-                        cleanupServer();
-                        return;
+                    if (validation.isValid) {
+                        devLogger("Obtained new access token for user: %s".formatted(validation.login));
+                        store.save(new TwitchCredentials(accessToken, validation.login));
+                        result = new AuthResult(accessToken, AuthResult.AuthType.NEW_AUTHORIZATION);
                     }
-
-                    devLogger("Obtained new access token for user: %s".formatted(validation.login));
-                    store.save(new TwitchCredentials(accessToken, validation.login));
-                    currentTokenFuture.complete(new AuthResult(accessToken, AuthResult.AuthType.NEW_AUTHORIZATION));
-                    cleanupServer();
                 } else if (params.containsKey("error")) {
                     LOGGER.warn("OAuth Error: {} - {}", params.get("error"),
                             params.getOrDefault("error_description", ""));
-                    currentTokenFuture.complete(null);
-                    cleanupServer();
-                } else {
-                    currentTokenFuture.complete(null);
-                    cleanupServer();
                 }
+            } finally {
+                currentTokenFuture.complete(result);
+                cleanupServer();
             }
         }
     }
