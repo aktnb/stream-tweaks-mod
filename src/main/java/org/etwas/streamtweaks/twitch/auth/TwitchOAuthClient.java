@@ -20,7 +20,7 @@ import static org.etwas.streamtweaks.StreamTweaks.devLogger;
 public class TwitchOAuthClient {
     private final Gson GSON = new GsonBuilder().create();
     private final HttpClient http = HttpClient.newHttpClient();
-    public final TwitchCredentialStore store = new TwitchCredentialStore();
+    public final TwitchCredentialStore store;
     public final String CLIENT_ID = "p5xrtcp49if1zj6b86y356htualkth";
     public final String[] DEFAULT_SCOPES = new String[] {
             "user:read:chat"
@@ -30,6 +30,14 @@ public class TwitchOAuthClient {
     private String currentState = null;
     private CompletableFuture<AuthResult> currentTokenFuture = null;
     private final Object authorizationLock = new Object();
+
+    public TwitchOAuthClient() {
+        this(new TwitchCredentialStore());
+    }
+
+    TwitchOAuthClient(TwitchCredentialStore store) {
+        this.store = store;
+    }
 
     public CompletableFuture<Boolean> hasValidToken() {
         var credentials = store.loadOrCreate();

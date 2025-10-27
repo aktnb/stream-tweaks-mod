@@ -1,5 +1,4 @@
 plugins {
-    id 'java'
     id 'fabric-loom' version '1.11-SNAPSHOT'
     id 'maven-publish'
 }
@@ -114,5 +113,5 @@ publishing {
 }
 
 test {
-    useJUnitPlatform()
+	useJUnitPlatform()
 }

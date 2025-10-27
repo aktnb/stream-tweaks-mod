@@ -1,39 +1,32 @@
 package org.etwas.streamtweaks.twitch.auth;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.BeforeEach;
-import org.mockito.MockedConstruction;
-import org.mockito.MockitoAnnotations;
-import java.util.concurrent.CompletableFuture;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.*;
 
-public class TwitchOAuthClientTest {
+@ExtendWith(MockitoExtension.class)
+class TwitchOAuthClientTest {
 
+    @InjectMocks
     private TwitchOAuthClient sut;
 
-    @BeforeEach
-    public void setUp() {
-        MockitoAnnotations.openMocks(this);
-    }
+    @Mock
+    private TwitchCredentialStore credentialStore;
 
     @Test
-    public void testHasValidTokenWithNoCredentialStore() {
-        try (MockedConstruction<TwitchCredentialStore> mockedConstruction = mockConstruction(
-                TwitchCredentialStore.class, (mock, context) -> {
-                    TwitchCredentials emptyCredentials = new TwitchCredentials(null, null);
-                    when(mock.loadOrCreate()).thenReturn(emptyCredentials);
-                })) {
+    void testHasValidTokenWithNoCredentialStore() {
+        TwitchCredentials emptyCredentials = new TwitchCredentials(null, null);
+        when(credentialStore.loadOrCreate()).thenReturn(emptyCredentials);
 
-            sut = new TwitchOAuthClient();
+        boolean actual = sut.hasValidToken().join();
 
-            CompletableFuture<Boolean> result = sut.hasValidToken();
-
-            assertFalse(result.join(), "Should return false when there is no access token.");
-
-            TwitchCredentialStore mockStore = mockedConstruction.constructed().get(0);
-            verify(mockStore, times(1)).loadOrCreate();
-        }
+        assertFalse(actual, "Should return false when there is no access token.");
+        verify(credentialStore, times(1)).loadOrCreate();
+        verifyNoMoreInteractions(credentialStore);
     }
 }
