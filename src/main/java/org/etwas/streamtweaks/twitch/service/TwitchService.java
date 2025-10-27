@@ -58,35 +58,27 @@ public final class TwitchService {
     }
 
     public CompletableFuture<Void> ensureAuthenticated() {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return oauthClient.getAccessToken(url -> {
-                    ChatMessageUtil.sendMessage(() -> MessageTexts.promptAuthentication(URI.create(url)));
-                });
-            } catch (Exception e) {
-                throw new CompletionException(e);
+        return oauthClient.getAccessToken(url -> {
+            ChatMessageUtil.sendMessage(() -> MessageTexts.promptAuthentication(URI.create(url)));
+        }).thenAccept(result -> {
+            if (result == null || result.token() == null) {
+                throw new CompletionException(
+                        new IllegalStateException("Twitch access token was not obtained"));
             }
-        }).thenCompose(authFuture -> authFuture)
-                .thenAccept(result -> {
-                    if (result == null || result.token() == null) {
-                        throw new CompletionException(
-                                new IllegalStateException("Twitch access token was not obtained"));
-                    }
 
-                    helixClient.setCredentials(result.token(), oauthClient.CLIENT_ID);
+            helixClient.setCredentials(result.token(), oauthClient.CLIENT_ID);
 
-                    if (result.authType() == AuthType.NEW_AUTHORIZATION) {
-                        ChatMessageUtil.sendMessage(() -> MessageTexts.authenticated());
-                    }
+            if (result.authType() == AuthType.NEW_AUTHORIZATION) {
+                ChatMessageUtil.sendMessage(() -> MessageTexts.authenticated());
+            }
 
-                    StreamTweaks.devLogger(
-                            "Got Twitch access token: %s (type: %s)".formatted(result.token(), result.authType()));
-                })
-                .whenComplete((ignored, throwable) -> {
-                    if (throwable != null) {
-                        StreamTweaks.LOGGER.error("Failed to get Twitch access token", throwable);
-                    }
-                });
+            StreamTweaks.devLogger(
+                    "Got Twitch access token: %s (type: %s)".formatted(result.token(), result.authType()));
+        }).whenComplete((ignored, throwable) -> {
+            if (throwable != null) {
+                StreamTweaks.LOGGER.error("Failed to get Twitch access token", throwable);
+            }
+        });
     }
 
     public void handleAutoAuthenticationOnWorldJoin() {
