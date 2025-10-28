@@ -1,9 +1,9 @@
 package org.etwas.streamtweaks.twitch.auth;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import net.fabricmc.loader.api.FabricLoader;
 import org.etwas.streamtweaks.StreamTweaks;
+import org.etwas.streamtweaks.utils.GsonUtils;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -17,7 +17,7 @@ import java.util.Set;
 import static org.etwas.streamtweaks.StreamTweaks.LOGGER;
 
 public class TwitchCredentialStore {
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final Gson GSON = GsonUtils.getBuilder().setPrettyPrinting().create();
     private final Path file = FabricLoader.getInstance().getConfigDir().resolve(StreamTweaks.MOD_ID)
             .resolve("twitch-credentials.json");
 

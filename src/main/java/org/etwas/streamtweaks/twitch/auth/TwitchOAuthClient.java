@@ -136,7 +136,7 @@ public class TwitchOAuthClient {
                     var validation = validateToken(accessToken).join();
                     if (validation.isValid) {
                         devLogger("Obtained new access token for user: %s".formatted(validation.login));
-                        store.save(new TwitchCredentials(accessToken, validation.login));
+                        store.save(new TwitchCredentials(validation.login, accessToken));
                         result = new AuthResult(accessToken, AuthResult.AuthType.NEW_AUTHORIZATION);
                     }
                 } else if (params.containsKey("error")) {

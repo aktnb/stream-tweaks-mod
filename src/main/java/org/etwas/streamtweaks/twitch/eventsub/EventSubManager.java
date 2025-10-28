@@ -1,5 +1,6 @@
 package org.etwas.streamtweaks.twitch.eventsub;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -96,9 +97,9 @@ public final class EventSubManager implements WebSocketClient.Listener, Keepaliv
     @Override
     public void onWelcome(SessionInfo info) {
         StreamTweaks.LOGGER.info("EventSub WebSocket connected, sessionId={}, keepaliveTimeout={}s",
-                info.sessionId(), info.keepaliveTimeout());
-        this.sessionId = info.sessionId();
-        keepalive.start(info.keepaliveTimeout());
+                info.id(), info.keepaliveTimeoutSeconds());
+        this.sessionId = info.id();
+        keepalive.start(Duration.ofSeconds(info.keepaliveTimeoutSeconds()));
         subscriptionIds.clear();
 
         for (SubscriptionSpec spec : desired) {
