@@ -29,8 +29,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-import net.minecraft.client.session.Session;
-
 public final class TwitchWebSocketClient implements WebSocketClient {
     private static final Gson gson = GsonUtils.getBuilder().create();
     private final HttpClient http;
