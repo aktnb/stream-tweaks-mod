@@ -22,7 +22,7 @@ public interface WebSocketClient {
 
         void onReconnect(String reconnectUrl);
 
-        void onNotification(String type, String json);
+        void onNotification(String type, String event);
 
         void onRevocation(String type, String reason);
 

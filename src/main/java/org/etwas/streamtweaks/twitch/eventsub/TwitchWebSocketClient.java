@@ -29,6 +29,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import net.minecraft.client.session.Session;
+
 public final class TwitchWebSocketClient implements WebSocketClient {
     private static final Gson gson = GsonUtils.getBuilder().create();
     private final HttpClient http;
@@ -223,14 +225,14 @@ public final class TwitchWebSocketClient implements WebSocketClient {
             var message = gson.fromJson(json, WebSocketMessage.class);
             devLogger(json);
             JsonObject root = JsonParser.parseString(json).getAsJsonObject();
-            JsonObject metadata = root.getAsJsonObject("metadata");
-            String type = metadata.get("message_type").getAsString();
+            String type = message.metadata().messageType();
+            JsonObject payload = message.payload();
 
             switch (type) {
-                case "session_welcome" -> handleWelcome(root);
+                case "session_welcome" -> handleWelcome(payload);
                 case "session_keepalive" -> fireKeepalive();
-                case "session_reconnect" -> handleReconnect(root);
-                case "notification" -> handleNotification(root);
+                case "session_reconnect" -> handleReconnect(payload);
+                case "notification" -> handleNotification(payload);
                 case "revocation" -> handleRevocation(root);
                 default -> StreamTweaks.devLogger("[WS] unknown message_type: " + type);
             }
@@ -239,25 +241,26 @@ public final class TwitchWebSocketClient implements WebSocketClient {
         }
     }
 
-    private void handleWelcome(JsonObject root) {
-        JsonObject session = root.getAsJsonObject("payload").getAsJsonObject("session");
-        var info = gson.fromJson(session, SessionInfo.class);
-        fireWelcome(info);
+    private void handleWelcome(JsonObject payload) {
+        var sessionInfo = gson.fromJson(
+                payload.getAsJsonObject("session"),
+                SessionInfo.class);
+        fireWelcome(sessionInfo);
     }
 
-    private void handleReconnect(JsonObject root) {
-        JsonObject session = root.getAsJsonObject("payload").getAsJsonObject("session");
-        String url = session.get("reconnect_url").getAsString();
-        fireReconnect(url);
+    private void handleReconnect(JsonObject payload) {
+        var sessionInfo = gson.fromJson(
+                payload.getAsJsonObject("session"),
+                SessionInfo.class);
+        fireReconnect(sessionInfo.reconnectUrl());
     }
 
-    private void handleNotification(JsonObject root) {
-        JsonObject payload = root.getAsJsonObject("payload");
+    // channel.chat.message
+    private void handleNotification(JsonObject payload) {
         JsonObject sub = payload.getAsJsonObject("subscription");
         String subType = sub.get("type").getAsString();
         JsonElement event = payload.get("event");
-        String eventJson = (event == null || event.isJsonNull()) ? "{}" : event.toString();
-        fireNotification(subType, eventJson);
+        fireNotification(subType, event.toString());
     }
 
     private void handleRevocation(JsonObject root) {
@@ -298,11 +301,11 @@ public final class TwitchWebSocketClient implements WebSocketClient {
         }
     }
 
-    private void fireNotification(String type, String json) {
+    private void fireNotification(String type, String event) {
         var l = appListener;
         if (l != null) {
             try {
-                l.onNotification(type, json);
+                l.onNotification(type, event);
             } catch (Throwable ignored) {
             }
         }
