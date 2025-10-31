@@ -1,5 +1,6 @@
 package org.etwas.streamtweaks.twitch.eventsub;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -46,8 +47,14 @@ public final class EventSubManager implements WebSocketClient.Listener, Keepaliv
         if (sessionId != null) {
             helix.createEventSubSubscription(spec, sessionId)
                     .thenAccept(response -> {
-                        if (response != null && response.isSuccess() && response.subscriptionId() != null) {
-                            subscriptionIds.put(spec, response.subscriptionId());
+                        if (response != null && response.isSuccess()) {
+                            var result = response.data();
+                            if (result != null && !result.subscriptions().isEmpty()) {
+                                var subscription = result.subscriptions().get(0);
+                                if (subscription != null) {
+                                    subscriptionIds.put(spec, subscription.id());
+                                }
+                            }
                         }
                     });
         }
@@ -90,16 +97,20 @@ public final class EventSubManager implements WebSocketClient.Listener, Keepaliv
     @Override
     public void onWelcome(SessionInfo info) {
         StreamTweaks.LOGGER.info("EventSub WebSocket connected, sessionId={}, keepaliveTimeout={}s",
-                info.sessionId(), info.keepaliveTimeout());
-        this.sessionId = info.sessionId();
-        keepalive.start(info.keepaliveTimeout());
+                info.id(), info.keepaliveTimeoutSeconds());
+        this.sessionId = info.id();
+        keepalive.start(Duration.ofSeconds(info.keepaliveTimeoutSeconds()));
         subscriptionIds.clear();
 
         for (SubscriptionSpec spec : desired) {
             helix.createEventSubSubscription(spec, sessionId)
                     .thenAccept(response -> {
-                        if (response != null && response.isSuccess() && response.subscriptionId() != null) {
-                            subscriptionIds.put(spec, response.subscriptionId());
+                        if (response != null && response.isSuccess()) {
+                            var result = response.data();
+                            var subscription = result.subscriptions().get(0);
+                            if (subscription != null) {
+                                subscriptionIds.put(spec, subscription.id());
+                            }
                         }
                     });
         }
@@ -116,14 +127,14 @@ public final class EventSubManager implements WebSocketClient.Listener, Keepaliv
     }
 
     @Override
-    public void onNotification(String type, String json) {
-        StreamTweaks.devLogger("Received EventSub notification: type=%s, json=%s".formatted(type, json));
+    public void onNotification(String type, String event) {
+        StreamTweaks.devLogger("Received EventSub notification: type=%s, json=%s".formatted(type, event));
         keepalive.onKeepalive();
 
         Consumer<EventNotification> handler = notificationHandler;
         if (handler != null) {
             try {
-                handler.accept(new EventNotification(type, json));
+                handler.accept(new EventNotification(type, event));
             } catch (Exception e) {
                 StreamTweaks.LOGGER.error("Failed to handle EventSub notification", e);
             }

@@ -1,11 +1,12 @@
 package org.etwas.streamtweaks.twitch.eventsub;
 
+import static org.etwas.streamtweaks.StreamTweaks.devLogger;
+
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -21,12 +22,15 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.etwas.streamtweaks.StreamTweaks;
 import org.etwas.streamtweaks.utils.BackoffPolicy;
 import org.etwas.streamtweaks.utils.ExponentialBackoffPolicy;
+import org.etwas.streamtweaks.utils.GsonUtils;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 public final class TwitchWebSocketClient implements WebSocketClient {
+    private static final Gson gson = GsonUtils.getBuilder().create();
     private final HttpClient http;
     private final ScheduledExecutorService scheduler;
 
@@ -179,7 +183,6 @@ public final class TwitchWebSocketClient implements WebSocketClient {
 
         @Override
         public CompletionStage<?> onBinary(WebSocket webSocket, ByteBuffer data, boolean last) {
-            // EventSub はテキスト JSON
             StreamTweaks.devLogger("[WS] onBinary (ignored)");
             webSocket.request(1);
             return CompletableFuture.completedFuture(null);
@@ -187,7 +190,6 @@ public final class TwitchWebSocketClient implements WebSocketClient {
 
         @Override
         public CompletionStage<?> onPing(WebSocket webSocket, ByteBuffer message) {
-            // java.net.http.WebSocket は自動で Pong 返す
             StreamTweaks.devLogger("[WS] onPing");
             webSocket.request(1);
             return CompletableFuture.completedFuture(null);
@@ -218,15 +220,17 @@ public final class TwitchWebSocketClient implements WebSocketClient {
 
     private void handleMessage(String json) {
         try {
+            var message = gson.fromJson(json, WebSocketMessage.class);
+            devLogger(json);
             JsonObject root = JsonParser.parseString(json).getAsJsonObject();
-            JsonObject metadata = root.getAsJsonObject("metadata");
-            String type = metadata.get("message_type").getAsString();
+            String type = message.metadata().messageType();
+            JsonObject payload = message.payload();
 
             switch (type) {
-                case "session_welcome" -> handleWelcome(root);
+                case "session_welcome" -> handleWelcome(payload);
                 case "session_keepalive" -> fireKeepalive();
-                case "session_reconnect" -> handleReconnect(root);
-                case "notification" -> handleNotification(root);
+                case "session_reconnect" -> handleReconnect(payload);
+                case "notification" -> handleNotification(payload);
                 case "revocation" -> handleRevocation(root);
                 default -> StreamTweaks.devLogger("[WS] unknown message_type: " + type);
             }
@@ -235,36 +239,26 @@ public final class TwitchWebSocketClient implements WebSocketClient {
         }
     }
 
-    private void handleWelcome(JsonObject root) {
-        JsonObject session = root.getAsJsonObject("payload").getAsJsonObject("session");
-        String sessionId = session.get("id").getAsString();
-        int timeoutSec = session.get("keepalive_timeout_seconds").getAsInt();
-        String status = optString(session, "status");
-        Instant connectedAt = optInstant(session, "connected_at");
-        String reconnectUrl = optString(session, "reconnect_url");
-
-        SessionInfo info = new SessionInfo(
-                sessionId,
-                Duration.ofSeconds(timeoutSec),
-                status,
-                connectedAt,
-                reconnectUrl);
-        fireWelcome(info);
+    private void handleWelcome(JsonObject payload) {
+        var sessionInfo = gson.fromJson(
+                payload.getAsJsonObject("session"),
+                SessionInfo.class);
+        fireWelcome(sessionInfo);
     }
 
-    private void handleReconnect(JsonObject root) {
-        JsonObject session = root.getAsJsonObject("payload").getAsJsonObject("session");
-        String url = session.get("reconnect_url").getAsString();
-        fireReconnect(url);
+    private void handleReconnect(JsonObject payload) {
+        var sessionInfo = gson.fromJson(
+                payload.getAsJsonObject("session"),
+                SessionInfo.class);
+        fireReconnect(sessionInfo.reconnectUrl());
     }
 
-    private void handleNotification(JsonObject root) {
-        JsonObject payload = root.getAsJsonObject("payload");
+    // channel.chat.message
+    private void handleNotification(JsonObject payload) {
         JsonObject sub = payload.getAsJsonObject("subscription");
         String subType = sub.get("type").getAsString();
         JsonElement event = payload.get("event");
-        String eventJson = (event == null || event.isJsonNull()) ? "{}" : event.toString();
-        fireNotification(subType, eventJson);
+        fireNotification(subType, event.toString());
     }
 
     private void handleRevocation(JsonObject root) {
@@ -305,11 +299,11 @@ public final class TwitchWebSocketClient implements WebSocketClient {
         }
     }
 
-    private void fireNotification(String type, String json) {
+    private void fireNotification(String type, String event) {
         var l = appListener;
         if (l != null) {
             try {
-                l.onNotification(type, json);
+                l.onNotification(type, event);
             } catch (Throwable ignored) {
             }
         }
@@ -347,10 +341,6 @@ public final class TwitchWebSocketClient implements WebSocketClient {
 
     private static String optString(JsonObject o, String k) {
         return (o.has(k) && !o.get(k).isJsonNull()) ? o.get(k).getAsString() : null;
-    }
-
-    private static Instant optInstant(JsonObject o, String k) {
-        return (o.has(k) && !o.get(k).isJsonNull()) ? Instant.parse(o.get(k).getAsString()) : null;
     }
 
     public void shutdown() {

@@ -1,6 +1,6 @@
 package org.etwas.streamtweaks.twitch.auth;
 
-public class TwitchCredentials {
-    public String login;
-    public String accessToken;
+public record TwitchCredentials(
+        String login,
+        String accessToken) {
 }

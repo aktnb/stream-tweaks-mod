@@ -7,17 +7,15 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import org.etwas.streamtweaks.twitch.eventsub.SubscriptionSpec;
 import org.etwas.streamtweaks.StreamTweaks;
 
+import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
-import com.google.gson.JsonArray;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
 public final class HelixClient {
     private static final String TWITCH_API_BASE = "https://api.twitch.tv/helix";
@@ -33,7 +31,9 @@ public final class HelixClient {
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
-        this.gson = new Gson();
+        this.gson = new GsonBuilder()
+                .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
+                .create();
     }
 
     public void setCredentials(String accessToken, String clientId) {
@@ -43,12 +43,14 @@ public final class HelixClient {
 
     /**
      * Create EventSub Subscription
+     * 
+     * https://dev.twitch.tv/docs/api/reference/#create-eventsub-subscription
      *
      * @param subscription サブスクリプション仕様
      * @param sessionId    WebSocketセッションID
      * @return CompletableFuture<CreateSubscriptionResponse>
      */
-    public CompletableFuture<CreateSubscriptionResponse> createEventSubSubscription(SubscriptionSpec subscription,
+    public CompletableFuture<ApiResponse<SubscriptionResult>> createEventSubSubscription(SubscriptionSpec subscription,
             String sessionId) {
         StreamTweaks.devLogger("Creating EventSub subscription: type=" + subscription.type() + ", version="
                 + subscription.version() + ", condition=" + subscription.condition() + ", sessionId=" + sessionId);
@@ -81,25 +83,27 @@ public final class HelixClient {
                                     response.body()));
 
                     if (response.statusCode() == 202) {
-                        JsonObject responseJson = JsonParser.parseString(response.body()).getAsJsonObject();
-                        return CreateSubscriptionResponse.success(responseJson);
+                        SubscriptionResult result = gson.fromJson(response.body(), SubscriptionResult.class);
+                        return new ApiResponse<SubscriptionResult>(true, 202, result, null);
                     } else {
                         String errorBody = response.body();
-                        return CreateSubscriptionResponse.error(response.statusCode(), errorBody);
+                        return new ApiResponse<SubscriptionResult>(false, response.statusCode(), null, errorBody);
                     }
                 })
                 .exceptionally(throwable -> {
                     StreamTweaks.LOGGER.error("EventSub subscription request failed", throwable);
-                    return CreateSubscriptionResponse.error(-1, throwable.getMessage());
+                    return new ApiResponse<SubscriptionResult>(false, -1, null, throwable.getMessage());
                 });
     }
 
     /**
      * Get EventSub Subscriptions
      * 
+     * https://dev.twitch.tv/docs/api/reference/#get-eventsub-subscriptions
+     * 
      * @return CompletableFuture<GetSubscriptionsResponse>
      */
-    public CompletableFuture<GetSubscriptionsResponse> getEventSubSubscriptions() {
+    public CompletableFuture<ApiResponse<SubscriptionResult>> getEventSubSubscriptions() {
         if (accessToken == null || clientId == null) {
             return CompletableFuture.failedFuture(new IllegalStateException("認証情報が設定されていません"));
         }
@@ -118,26 +122,28 @@ public final class HelixClient {
                                     response.body()));
 
                     if (response.statusCode() == 200) {
-                        JsonObject responseJson = JsonParser.parseString(response.body()).getAsJsonObject();
-                        return GetSubscriptionsResponse.success(responseJson);
+                        var result = gson.fromJson(response.body(), SubscriptionResult.class);
+                        return new ApiResponse<SubscriptionResult>(true, 200, result, null);
                     } else {
                         String errorBody = response.body();
-                        return GetSubscriptionsResponse.error(response.statusCode(), errorBody);
+                        return new ApiResponse<SubscriptionResult>(false, response.statusCode(), null, errorBody);
                     }
                 })
                 .exceptionally(throwable -> {
                     StreamTweaks.LOGGER.error("EventSub subscriptions list request failed", throwable);
-                    return GetSubscriptionsResponse.error(-1, throwable.getMessage());
+                    return new ApiResponse<SubscriptionResult>(false, -1, null, throwable.getMessage());
                 });
     }
 
     /**
      * Delete EventSub Subscription
      * 
+     * https://dev.twitch.tv/docs/api/reference/#delete-eventsub-subscription
+     * 
      * @param subscriptionId サブスクリプションID
      * @return CompletableFuture<DeleteSubscriptionResponse>
      */
-    public CompletableFuture<DeleteSubscriptionResponse> deleteEventSubSubscription(String subscriptionId) {
+    public CompletableFuture<ApiResponse<Void>> deleteEventSubSubscription(String subscriptionId) {
         if (accessToken == null || clientId == null) {
             return CompletableFuture.failedFuture(new IllegalStateException("認証情報が設定されていません"));
         }
@@ -158,25 +164,27 @@ public final class HelixClient {
                                     response.body()));
 
                     if (response.statusCode() == 204) {
-                        return DeleteSubscriptionResponse.success();
+                        return new ApiResponse<Void>(true, 204, null, null);
                     } else {
                         String errorBody = response.body();
-                        return DeleteSubscriptionResponse.error(response.statusCode(), errorBody);
+                        return new ApiResponse<Void>(false, response.statusCode(), null, errorBody);
                     }
                 })
                 .exceptionally(throwable -> {
                     StreamTweaks.LOGGER.error("EventSub subscription delete request failed", throwable);
-                    return DeleteSubscriptionResponse.error(-1, throwable.getMessage());
+                    return new ApiResponse<Void>(false, -1, null, throwable.getMessage());
                 });
     }
 
     /**
-     * Get User by Login
+     * Get User by Login'
+     * 
+     * https://dev.twitch.tv/docs/api/reference/#get-users
      *
      * @param login ユーザーのログイン名
      * @return CompletableFuture<GetUsersResponse>
      */
-    public CompletableFuture<GetUsersResponse> getUserByLogin(String login) {
+    public CompletableFuture<ApiResponse<TwitchUserResult>> getUserByLogin(String login) {
         if (accessToken == null || clientId == null) {
             return CompletableFuture.failedFuture(new IllegalStateException("認証情報が設定されていません"));
         }
@@ -196,74 +204,27 @@ public final class HelixClient {
                             "Get user by login response: %s %s".formatted(response.statusCode(), response.body()));
 
                     if (response.statusCode() == 200) {
-                        JsonObject responseJson = JsonParser.parseString(response.body()).getAsJsonObject();
-                        return GetUsersResponse.success(responseJson);
+                        var result = gson.fromJson(response.body(), TwitchUserResult.class);
+                        return new ApiResponse<TwitchUserResult>(true, 200, result, null);
                     } else {
                         String errorBody = response.body();
-                        return GetUsersResponse.error(response.statusCode(), errorBody);
+                        return new ApiResponse<TwitchUserResult>(false, response.statusCode(), null, errorBody);
                     }
                 })
                 .exceptionally(throwable -> {
                     StreamTweaks.LOGGER.error("Get user by login request failed", throwable);
-                    return GetUsersResponse.error(-1, throwable.getMessage());
-                });
-    }
-
-    /**
-     * Get Users by Login
-     *
-     * @param logins ユーザーのログイン名配列（最大100個）
-     * @return CompletableFuture<GetUsersResponse>
-     */
-    public CompletableFuture<GetUsersResponse> getUsersByLogin(String... logins) {
-        if (accessToken == null || clientId == null) {
-            return CompletableFuture.failedFuture(new IllegalStateException("認証情報が設定されていません"));
-        }
-
-        if (logins.length == 0) {
-            return CompletableFuture.failedFuture(new IllegalArgumentException("少なくとも一つのログイン名が必要です"));
-        }
-
-        StringBuilder urlBuilder = new StringBuilder(USERS_ENDPOINT + "?");
-        for (int i = 0; i < logins.length; i++) {
-            if (i > 0) {
-                urlBuilder.append("&");
-            }
-            urlBuilder.append("login=").append(URLEncoder.encode(logins[i], StandardCharsets.UTF_8));
-        }
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(urlBuilder.toString()))
-                .header("Authorization", "Bearer " + accessToken)
-                .header("Client-Id", clientId)
-                .GET()
-                .build();
-
-        return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(response -> {
-                    StreamTweaks.devLogger(
-                            "Get users by login response: %s %s".formatted(response.statusCode(), response.body()));
-
-                    if (response.statusCode() == 200) {
-                        JsonObject responseJson = JsonParser.parseString(response.body()).getAsJsonObject();
-                        return GetUsersResponse.success(responseJson);
-                    } else {
-                        String errorBody = response.body();
-                        return GetUsersResponse.error(response.statusCode(), errorBody);
-                    }
-                })
-                .exceptionally(throwable -> {
-                    StreamTweaks.LOGGER.error("Get users by login request failed", throwable);
-                    return GetUsersResponse.error(-1, throwable.getMessage());
+                    return new ApiResponse<TwitchUserResult>(false, -1, null, throwable.getMessage());
                 });
     }
 
     /**
      * Get Current User (Authenticated User)
+     * 
+     * https://dev.twitch.tv/docs/api/reference/#get-users
      *
      * @return CompletableFuture<GetUsersResponse>
      */
-    public CompletableFuture<GetUsersResponse> getCurrentUser() {
+    public CompletableFuture<ApiResponse<TwitchUserResult>> getCurrentUser() {
         if (accessToken == null || clientId == null) {
             return CompletableFuture.failedFuture(new IllegalStateException("認証情報が設定されていません"));
         }
@@ -281,125 +242,16 @@ public final class HelixClient {
                             "Get current user response: %s %s".formatted(response.statusCode(), response.body()));
 
                     if (response.statusCode() == 200) {
-                        JsonObject responseJson = JsonParser.parseString(response.body()).getAsJsonObject();
-                        return GetUsersResponse.success(responseJson);
+                        var result = gson.fromJson(response.body(), TwitchUserResult.class);
+                        return new ApiResponse<TwitchUserResult>(true, 200, result, null);
                     } else {
                         String errorBody = response.body();
-                        return GetUsersResponse.error(response.statusCode(), errorBody);
+                        return new ApiResponse<TwitchUserResult>(false, response.statusCode(), null, errorBody);
                     }
                 })
                 .exceptionally(throwable -> {
                     StreamTweaks.LOGGER.error("Get current user request failed", throwable);
-                    return GetUsersResponse.error(-1, throwable.getMessage());
+                    return new ApiResponse<TwitchUserResult>(false, -1, null, throwable.getMessage());
                 });
-    }
-
-    public static record CreateSubscriptionResponse(
-            boolean isSuccess,
-            int statusCode,
-            JsonObject data,
-            String subscriptionId,
-            String errorMessage) {
-        public static CreateSubscriptionResponse success(JsonObject data) {
-            String subscriptionId = null;
-            try {
-                var dataArray = data.getAsJsonArray("data");
-                if (dataArray != null && dataArray.size() > 0) {
-                    var subscription = dataArray.get(0).getAsJsonObject();
-                    if (subscription.has("id")) {
-                        subscriptionId = subscription.get("id").getAsString();
-                    }
-                }
-            } catch (Exception e) {
-                StreamTweaks.LOGGER.warn("Failed to extract subscription ID from response", e);
-            }
-            return new CreateSubscriptionResponse(true, 202, data, subscriptionId, null);
-        }
-
-        public static CreateSubscriptionResponse error(int statusCode, String errorMessage) {
-            return new CreateSubscriptionResponse(false, statusCode, null, null, errorMessage);
-        }
-    }
-
-    public static record GetSubscriptionsResponse(
-            boolean isSuccess,
-            int statusCode,
-            JsonObject data,
-            String errorMessage) {
-        public static GetSubscriptionsResponse success(JsonObject data) {
-            return new GetSubscriptionsResponse(true, 200, data, null);
-        }
-
-        public static GetSubscriptionsResponse error(int statusCode, String errorMessage) {
-            return new GetSubscriptionsResponse(false, statusCode, null, errorMessage);
-        }
-    }
-
-    public static record DeleteSubscriptionResponse(
-            boolean isSuccess,
-            int statusCode,
-            String errorMessage) {
-        public static DeleteSubscriptionResponse success() {
-            return new DeleteSubscriptionResponse(true, 204, null);
-        }
-
-        public static DeleteSubscriptionResponse error(int statusCode, String errorMessage) {
-            return new DeleteSubscriptionResponse(false, statusCode, errorMessage);
-        }
-    }
-
-    public static record GetUsersResponse(
-            boolean isSuccess,
-            int statusCode,
-            List<TwitchUser> users,
-            String errorMessage) {
-        public static GetUsersResponse success(JsonObject data) {
-            List<TwitchUser> users = new ArrayList<>();
-            try {
-                JsonArray usersArray = data.getAsJsonArray("data");
-                if (usersArray != null) {
-                    for (int i = 0; i < usersArray.size(); i++) {
-                        JsonObject userJson = usersArray.get(i).getAsJsonObject();
-                        users.add(TwitchUser.fromJson(userJson));
-                    }
-                }
-            } catch (Exception e) {
-                StreamTweaks.LOGGER.warn("Failed to parse users from response", e);
-            }
-            return new GetUsersResponse(true, 200, users, null);
-        }
-
-        public static GetUsersResponse error(int statusCode, String errorMessage) {
-            return new GetUsersResponse(false, statusCode, null, errorMessage);
-        }
-    }
-
-    public static record TwitchUser(
-            String id,
-            String login,
-            String displayName,
-            String type,
-            String broadcasterType,
-            String description,
-            String profileImageUrl,
-            String offlineImageUrl,
-            int viewCount,
-            String email) {
-
-        public static TwitchUser fromJson(JsonObject json) {
-            String id = json.has("id") ? json.get("id").getAsString() : null;
-            String login = json.has("login") ? json.get("login").getAsString() : null;
-            String displayName = json.has("display_name") ? json.get("display_name").getAsString() : null;
-            String type = json.has("type") ? json.get("type").getAsString() : null;
-            String broadcasterType = json.has("broadcaster_type") ? json.get("broadcaster_type").getAsString() : null;
-            String description = json.has("description") ? json.get("description").getAsString() : null;
-            String profileImageUrl = json.has("profile_image_url") ? json.get("profile_image_url").getAsString() : null;
-            String offlineImageUrl = json.has("offline_image_url") ? json.get("offline_image_url").getAsString() : null;
-            int viewCount = json.has("view_count") ? json.get("view_count").getAsInt() : 0;
-            String email = json.has("email") ? json.get("email").getAsString() : null;
-
-            return new TwitchUser(id, login, displayName, type, broadcasterType,
-                    description, profileImageUrl, offlineImageUrl, viewCount, email);
-        }
     }
 }

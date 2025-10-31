@@ -10,13 +10,13 @@ base {
     archivesName = project.archives_base_name
 }
 
-
 repositories {
     // Add repositories to retrieve artifacts from in here.
     // You should only use this when depending on other mods because
     // Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
     // See https://docs.gradle.org/current/userguide/declaring_repositories.html
     // for more information about repositories.
+    mavenCentral()
     maven {
         name = "Terraformers"
         url = "https://maven.terraformersmc.com/"
@@ -41,6 +41,13 @@ dependencies {
     }
 
     implementation "com.google.code.gson:gson:${project.gson_version}"
+
+    testImplementation platform('org.junit:junit-bom:5.11.3')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    testImplementation 'org.mockito:mockito-core:5.13.0'
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.13.0'
 }
 
 processResources {
@@ -103,4 +110,8 @@ publishing {
         // The repositories here will be used for publishing your artifact, not for
         // retrieving dependencies.
     }
+}
+
+test {
+	useJUnitPlatform()
 }

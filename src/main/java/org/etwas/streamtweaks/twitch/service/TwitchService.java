@@ -14,7 +14,7 @@ import org.etwas.streamtweaks.client.chat.ChatMessage.Source;
 import org.etwas.streamtweaks.client.chat.ChatMessageLog;
 import org.etwas.streamtweaks.client.ui.MessageTexts;
 import org.etwas.streamtweaks.twitch.api.HelixClient;
-import org.etwas.streamtweaks.twitch.api.HelixClient.TwitchUser;
+import org.etwas.streamtweaks.twitch.api.TwitchUser;
 import org.etwas.streamtweaks.twitch.auth.AuthResult.AuthType;
 import org.etwas.streamtweaks.twitch.auth.TwitchOAuthClient;
 import org.etwas.streamtweaks.twitch.eventsub.EventSubManager;
@@ -58,55 +58,32 @@ public final class TwitchService {
     }
 
     public CompletableFuture<Void> ensureAuthenticated() {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return oauthClient.getAccessToken(new String[] { "user:read:chat" }, url -> {
-                    ChatMessageUtil.sendMessage(() -> MessageTexts.promptAuthentication(URI.create(url)));
-                });
-            } catch (Exception e) {
-                throw new CompletionException(e);
+        return oauthClient.getAccessToken(url -> {
+            ChatMessageUtil.sendMessage(() -> MessageTexts.promptAuthentication(URI.create(url)));
+        }).thenAccept(result -> {
+            if (result == null || result.authType() == AuthType.NONE || result.token() == null) {
+                throw new CompletionException(
+                        new IllegalStateException("Twitch access token was not obtained"));
             }
-        }).thenCompose(authFuture -> authFuture)
-                .thenAccept(result -> {
-                    if (result == null || result.token == null) {
-                        throw new CompletionException(
-                                new IllegalStateException("Twitch access token was not obtained"));
-                    }
 
-                    helixClient.setCredentials(result.token, oauthClient.CLIENT_ID);
+            helixClient.setCredentials(result.token(), oauthClient.CLIENT_ID);
 
-                    if (result.authType == AuthType.NEW_AUTHORIZATION) {
-                        ChatMessageUtil.sendMessage(() -> MessageTexts.authenticated());
-                    }
-
-                    StreamTweaks.devLogger(
-                            "Got Twitch access token: %s (type: %s)".formatted(result.token, result.authType));
-                })
-                .whenComplete((ignored, throwable) -> {
-                    if (throwable != null) {
-                        StreamTweaks.LOGGER.error("Failed to get Twitch access token", throwable);
-                    }
-                });
-    }
-
-    public boolean isAuthenticated() {
-        try {
-            var credentials = oauthClient.store.loadOrCreate();
-            if (credentials.accessToken == null) {
-                return false;
+            if (result.authType() == AuthType.NEW_AUTHORIZATION) {
+                ChatMessageUtil.sendMessage(() -> MessageTexts.authenticated());
             }
-            var validation = oauthClient.validateToken(credentials.accessToken);
-            return validation != null && validation.client_id.equals(oauthClient.CLIENT_ID);
-        } catch (Exception e) {
-            StreamTweaks.LOGGER.debug("Error checking authentication status", e);
-            return false;
-        }
+
+            StreamTweaks.devLogger(
+                    "Got Twitch access token: %s (type: %s)".formatted(result.token(), result.authType()));
+        }).whenComplete((ignored, throwable) -> {
+            if (throwable != null) {
+                StreamTweaks.LOGGER.error("Failed to get Twitch access token", throwable);
+            }
+        });
     }
 
     public void handleAutoAuthenticationOnWorldJoin() {
         try {
-            if (!isAuthenticated()) {
-                // Start authentication process automatically
+            if (!oauthClient.hasValidToken().join()) {
                 ensureAuthenticated().whenComplete((ignored, throwable) -> {
                     if (throwable != null) {
                         StreamTweaks.LOGGER.error("Error during auto-authentication on world join", throwable);
@@ -114,9 +91,6 @@ public final class TwitchService {
                 });
             }
         } catch (Exception e) {
-            // Silently ignore errors to prevent crashes on world join
-            // Logging would be helpful for debugging but not critical for the user
-            // experience
             StreamTweaks.LOGGER.debug("Error during auto-authentication on world join", e);
         }
     }
@@ -133,8 +107,17 @@ public final class TwitchService {
 
         return helixClient.getUserByLogin(normalizedLogin)
                 .thenCompose(response -> {
-                    if (response.isSuccess() && !response.users().isEmpty()) {
-                        TwitchUser user = response.users().get(0);
+                    if (response.isSuccess()) {
+                        var result = response.data();
+                        if (result.users() == null || result.users().isEmpty()) {
+                            String errorMsg = "チャンネル「" + normalizedLogin + "」が見つかりませんでした";
+                            StreamTweaks.LOGGER.error(errorMsg);
+
+                            ChatMessageUtil.sendMessage(() -> MessageTexts.channelNotFound(normalizedLogin));
+
+                            return CompletableFuture.failedFuture(new RuntimeException(errorMsg));
+                        }
+                        TwitchUser user = result.users().get(0);
                         String userId = user.id();
 
                         StreamTweaks.LOGGER.info("Successfully found user: {} (ID: {})", user.displayName(), userId);
@@ -174,8 +157,14 @@ public final class TwitchService {
 
         return helixClient.getCurrentUser()
                 .thenCompose(response -> {
-                    if (response.isSuccess() && response.users() != null && !response.users().isEmpty()) {
-                        TwitchUser currentUser = response.users().get(0);
+                    if (response.isSuccess()) {
+                        var result = response.data();
+                        if (result.users() == null || result.users().isEmpty()) {
+                            String errorMsg = "認証されたユーザー情報が見つかりませんでした";
+                            StreamTweaks.LOGGER.error(errorMsg);
+                            return CompletableFuture.failedFuture(new RuntimeException(errorMsg));
+                        }
+                        TwitchUser currentUser = result.users().get(0);
                         String login = currentUser.login();
                         if (login == null || login.isBlank()) {
                             return CompletableFuture.failedFuture(
@@ -203,8 +192,14 @@ public final class TwitchService {
 
         return helixClient.getCurrentUser()
                 .thenCompose(response -> {
-                    if (response.isSuccess() && !response.users().isEmpty()) {
-                        TwitchUser currentUser = response.users().get(0);
+                    if (response.isSuccess()) {
+                        var result = response.data();
+                        if (result.users() == null || result.users().isEmpty()) {
+                            String errorMsg = "認証されたユーザー情報が見つかりませんでした";
+                            StreamTweaks.LOGGER.error(errorMsg);
+                            return CompletableFuture.<SubscriptionSpec>failedFuture(new RuntimeException(errorMsg));
+                        }
+                        TwitchUser currentUser = result.users().get(0);
                         String authenticatedUserId = currentUser.id();
 
                         StreamTweaks.devLogger("Authenticated user ID: %s (%s)"
@@ -261,7 +256,9 @@ public final class TwitchService {
             return;
         }
 
-        ChatMessageUtil.sendMessage(() -> MessageTexts.disconnecting());
+        if (!silent) {
+            ChatMessageUtil.sendMessage(() -> MessageTexts.disconnecting());
+        }
 
         subscriptionManager.removeDesired(previousState.chatSubscription());
         ChatMessageLog.getInstance().clearSource(Source.TWITCH);
